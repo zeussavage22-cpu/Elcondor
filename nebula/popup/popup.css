@@ -46,6 +46,10 @@ select {
 .ghost:hover { background: var(--card2); }
 
 .hint-sm { font-size: 11px; color: var(--muted); margin: -2px 0 8px; }
+.verify-result { font-size: 12px; margin-top: 8px; line-height: 1.4; }
+.verify-result.ok { color: var(--accent2); }
+.verify-result.bad { color: var(--danger); }
+.verify-result.warn { color: #f5c451; }
 .checkrow { display: flex; align-items: center; gap: 8px; cursor: pointer; color: var(--muted); }
 .checkrow input { accent-color: var(--accent); }
 

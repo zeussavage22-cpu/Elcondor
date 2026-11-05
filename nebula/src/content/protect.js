@@ -15,6 +15,19 @@
   if (window.__nebulaInstalled) return;
   window.__nebulaInstalled = true;
 
+  // Shared-DOM marker so the popup can verify (across worlds) that this MAIN-world
+  // script actually ran on the page. The DOM is shared between the page and the
+  // extension's isolated world, so a content/executeScript read can see it.
+  function mark(state, ua) {
+    try {
+      const de = document.documentElement;
+      if (!de) return;
+      de.setAttribute('data-nebula', state);
+      if (ua) de.setAttribute('data-nebula-ua', ua);
+    } catch {}
+  }
+  mark('loaded');
+
   // --------------------------------------------------------------------- CFG
   let CFG = { enabled: false };
 
@@ -568,6 +581,7 @@
       const data = JSON.parse(ev.detail);
       CFG = data && data.enabled ? data : { enabled: false };
       if (CFG.enabled) reseed();
+      mark(CFG.enabled ? 'active' : 'off', CFG.enabled && CFG.profile ? CFG.profile.userAgent : '');
     } catch {}
   }, true);
 

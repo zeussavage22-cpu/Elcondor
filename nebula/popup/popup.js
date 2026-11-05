@@ -151,4 +151,66 @@ $('siteAllow').addEventListener('change', async (e) => {
 });
 $('openOptions').addEventListener('click', () => chrome.runtime.openOptionsPage());
 
+$('verify').addEventListener('click', async () => {
+  const el = $('verifyResult');
+  el.className = 'verify-result';
+  el.textContent = 'Comprobando…';
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab || !/^https?:/.test(tab.url || '')) {
+      el.className = 'verify-result warn';
+      el.textContent = 'Abre una página web normal (http/https) y vuelve a verificar.';
+      return;
+    }
+    const expected = STATE.profile.userAgent;
+
+    // Preferred: read navigator.userAgent as the PAGE itself sees it (MAIN world).
+    let pageUA = null;
+    try {
+      const res = await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        world: 'MAIN',
+        func: () => navigator.userAgent
+      });
+      pageUA = res && res[0] ? res[0].result : null;
+    } catch (_) {
+      pageUA = null; // browser may not support MAIN-world executeScript
+    }
+
+    if (pageUA != null) {
+      if (!STATE.settings.enabled) {
+        el.className = 'verify-result warn';
+        el.textContent = 'Nébula está desactivada. Actívala con el interruptor de arriba.';
+      } else if (pageUA === expected) {
+        el.className = 'verify-result ok';
+        el.innerHTML = '✅ Protección ACTIVA en esta página.<br>La web te ve como: <b>' + shortUA(pageUA) + '</b>';
+      } else {
+        el.className = 'verify-result bad';
+        el.innerHTML = '⚠️ NO se está aplicando aquí.<br>La web ve tu navegador real. Cierra y reabre esta pestaña tras instalar/activar. Si persiste, tu navegador puede no soportar la inyección en el mundo principal.';
+      }
+      return;
+    }
+
+    // Fallback: shared-DOM marker written by protect.js.
+    const res2 = await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      func: () => document.documentElement.getAttribute('data-nebula')
+    });
+    const mark = res2 && res2[0] ? res2[0].result : null;
+    if (mark === 'active') {
+      el.className = 'verify-result warn';
+      el.textContent = 'Nébula cargó y aplicó el perfil, pero este navegador no permite confirmar al 100% que llegue a la página. En Cover Your Tracks puede seguir apareciendo "única".';
+    } else if (mark) {
+      el.className = 'verify-result warn';
+      el.textContent = 'Nébula cargó pero aún no aplicó el perfil. Recarga la página e inténtalo de nuevo.';
+    } else {
+      el.className = 'verify-result bad';
+      el.textContent = '⚠️ Nébula no se está inyectando en esta página. Recarga la pestaña; si sigue, tu navegador no es compatible con la inyección.';
+    }
+  } catch (e) {
+    el.className = 'verify-result bad';
+    el.textContent = 'No se pudo verificar: ' + e.message;
+  }
+});
+
 load();
