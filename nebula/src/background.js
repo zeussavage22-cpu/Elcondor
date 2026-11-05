@@ -75,7 +75,7 @@ function resolveProfile(settings, seed) {
     case 'per-session':
     default: {
       const pool = RANDOM_POOLS[settings.randomPool] || RANDOM_POOLS.desktop;
-      return randomProfile(mulberry32(seed), pool);
+      return randomProfile(mulberry32(seed), pool, settings.timezoneRegion);
     }
   }
 }

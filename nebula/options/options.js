@@ -37,8 +37,11 @@ function render() {
   });
   presetSel.value = s.preset;
   $('pool').value = s.randomPool || 'desktop';
-  // Device picker always visible; pool only matters for the random modes.
-  $('poolField').style.display = (s.mode === 'per-session' || s.mode === 'per-site') ? '' : 'none';
+  $('region').value = s.timezoneRegion || 'americas';
+  // Device picker always visible; pool/region only matter for the random modes.
+  const rnd = (s.mode === 'per-session' || s.mode === 'per-site') ? '' : 'none';
+  $('poolField').style.display = rnd;
+  $('regionField').style.display = rnd;
 
   const grid = $('toggles');
   grid.innerHTML = '';
@@ -75,6 +78,7 @@ $('master').addEventListener('change', (e) => save({ enabled: e.target.checked }
 $('mode').addEventListener('change', (e) => { save({ mode: e.target.value }).then(load); });
 $('preset').addEventListener('change', (e) => { save({ mode: 'blend', preset: e.target.value }).then(load); });
 $('pool').addEventListener('change', (e) => { save({ randomPool: e.target.value }).then(load); });
+$('region').addEventListener('change', (e) => { save({ timezoneRegion: e.target.value }).then(load); });
 $('noise').addEventListener('change', (e) => save({ noise: e.target.value }));
 $('noiseStrategy').addEventListener('change', (e) => save({ noiseStrategy: e.target.value }));
 $('webrtcMode').addEventListener('change', (e) => save({ webrtcMode: e.target.value }));

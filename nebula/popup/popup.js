@@ -65,8 +65,10 @@ function render() {
   presetSel.value = s.preset;
   // Device picker is always available; choosing one switches to "blend".
   $('pool').value = s.randomPool || 'desktop';
+  $('region').value = s.timezoneRegion || 'americas';
   const isRandom = s.mode === 'per-session' || s.mode === 'per-site';
   $('poolRow').hidden = !isRandom;
+  $('regionRow').hidden = !isRandom;
   $('presetHint').hidden = s.mode === 'blend';
 
   // identity
@@ -131,6 +133,10 @@ $('preset').addEventListener('change', async (e) => {
 });
 $('pool').addEventListener('change', async (e) => {
   await send('setSettings', { patch: { randomPool: e.target.value } });
+  await load();
+});
+$('region').addEventListener('change', async (e) => {
+  await send('setSettings', { patch: { timezoneRegion: e.target.value } });
   await load();
 });
 $('regen').addEventListener('click', async () => {

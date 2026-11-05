@@ -15,6 +15,8 @@ export const DEFAULT_SETTINGS = {
   // which device families the random modes draw from:
   //   'desktop' -> win | mac | linux   'mobile' -> android | ios   'all' -> every family
   randomPool: 'desktop',
+  // which region the random modes draw timezone+locale from: 'americas' | 'europe' | 'any'
+  timezoneRegion: 'americas',
   noise: 'medium', // low | medium | high — intensity of canvas/audio/webgl noise
   // noiseStrategy:
   //   'session'  -> stable within a session, different per site (DEFAULT; stealthy —
@@ -332,14 +334,40 @@ export const RANDOM_POOLS = {
   all: ['win', 'mac', 'linux', 'android', 'ios']
 };
 
+// Coherent timezone + locale pairs so the region never contradicts the language
+// (e.g. no "es-ES in New York"). Picked together by the randomizer.
+const AMERICAS = [
+  { tz: 'America/New_York', language: 'en-US', languages: ['en-US', 'en'] },
+  { tz: 'America/Chicago', language: 'en-US', languages: ['en-US', 'en'] },
+  { tz: 'America/Los_Angeles', language: 'en-US', languages: ['en-US', 'en'] },
+  { tz: 'America/Denver', language: 'en-US', languages: ['en-US', 'en'] },
+  { tz: 'America/Mexico_City', language: 'es-MX', languages: ['es-MX', 'es'] },
+  { tz: 'America/Bogota', language: 'es-419', languages: ['es-419', 'es'] },
+  { tz: 'America/Lima', language: 'es-419', languages: ['es-419', 'es'] },
+  { tz: 'America/Argentina/Buenos_Aires', language: 'es-AR', languages: ['es-AR', 'es'] },
+  { tz: 'America/Sao_Paulo', language: 'pt-BR', languages: ['pt-BR', 'pt'] }
+];
+const EUROPE = [
+  { tz: 'Europe/London', language: 'en-GB', languages: ['en-GB', 'en'] },
+  { tz: 'Europe/Madrid', language: 'es-ES', languages: ['es-ES', 'es'] },
+  { tz: 'Europe/Berlin', language: 'de-DE', languages: ['de-DE', 'de'] },
+  { tz: 'Europe/Paris', language: 'fr-FR', languages: ['fr-FR', 'fr'] }
+];
+const REGION_PAIRS = {
+  americas: AMERICAS,
+  europe: EUROPE,
+  any: AMERICAS.concat(EUROPE)
+};
+
 // Build a fully coherent profile from a seeded RNG.
 // `pool` is an array of os keys; defaults to the desktop set.
-export function randomProfile(rng, pool) {
+export function randomProfile(rng, pool, region) {
   pool = pool && pool.length ? pool : RANDOM_POOLS.desktop;
   const os = pick(rng, pool);
   const cv = pick(rng, POOLS.chromeVersions);
-  const loc = pick(rng, POOLS.locales);
-  const tz = pick(rng, POOLS.timezones);
+  const pair = pick(rng, REGION_PAIRS[region] || REGION_PAIRS.americas);
+  const loc = { language: pair.language, languages: pair.languages };
+  const tz = pair.tz;
   const cores = pick(rng, POOLS.cores);
   const mem = pick(rng, POOLS.memory);
   const chromeBrands = [
