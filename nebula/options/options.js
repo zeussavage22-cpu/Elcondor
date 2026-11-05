@@ -35,7 +35,9 @@ function render() {
     presetSel.appendChild(o);
   });
   presetSel.value = s.preset;
-  $('presetField').style.display = (s.mode === 'blend' || s.mode === 'custom') ? '' : 'none';
+  $('pool').value = s.randomPool || 'desktop';
+  // Device picker always visible; pool only matters for the random modes.
+  $('poolField').style.display = (s.mode === 'per-session' || s.mode === 'per-site') ? '' : 'none';
 
   const grid = $('toggles');
   grid.innerHTML = '';
@@ -70,7 +72,8 @@ async function load() {
 // ---- events ----
 $('master').addEventListener('change', (e) => save({ enabled: e.target.checked }));
 $('mode').addEventListener('change', (e) => { save({ mode: e.target.value }).then(load); });
-$('preset').addEventListener('change', (e) => save({ preset: e.target.value }));
+$('preset').addEventListener('change', (e) => { save({ mode: 'blend', preset: e.target.value }).then(load); });
+$('pool').addEventListener('change', (e) => { save({ randomPool: e.target.value }).then(load); });
 $('noise').addEventListener('change', (e) => save({ noise: e.target.value }));
 $('webrtcMode').addEventListener('change', (e) => save({ webrtcMode: e.target.value }));
 $('timingPrecisionMs').addEventListener('change', (e) => save({ timingPrecisionMs: parseFloat(e.target.value) }));

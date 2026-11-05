@@ -336,7 +336,10 @@
     if (!NP) return;
     const real = navigator.userAgentData;
     defineGetter(NP, 'userAgentData', function () {
-      if (!on('uaData') || !CFG.profile || !CFG.profile.uaData) return real;
+      if (!on('uaData') || !CFG.profile) return real;
+      // Explicit null => a non-Chromium profile (Safari): hide Client Hints.
+      if (CFG.profile.uaData === null) return undefined;
+      if (!CFG.profile.uaData) return real;
       const u = CFG.profile.uaData;
       const lowEntropy = { brands: u.brands.map((b) => ({ brand: b.brand, version: b.version })), mobile: u.mobile, platform: u.platform };
       return {

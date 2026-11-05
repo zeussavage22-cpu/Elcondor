@@ -45,6 +45,7 @@ select {
 }
 .ghost:hover { background: var(--card2); }
 
+.hint-sm { font-size: 11px; color: var(--muted); margin: -2px 0 8px; }
 .checkrow { display: flex; align-items: center; gap: 8px; cursor: pointer; color: var(--muted); }
 .checkrow input { accent-color: var(--accent); }
 

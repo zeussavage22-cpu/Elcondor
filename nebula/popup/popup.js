@@ -63,7 +63,11 @@ function render() {
     presetSel.appendChild(o);
   });
   presetSel.value = s.preset;
-  $('presetRow').hidden = !(s.mode === 'blend' || s.mode === 'custom');
+  // Device picker is always available; choosing one switches to "blend".
+  $('pool').value = s.randomPool || 'desktop';
+  const isRandom = s.mode === 'per-session' || s.mode === 'per-site';
+  $('poolRow').hidden = !isRandom;
+  $('presetHint').hidden = s.mode === 'blend';
 
   // identity
   $('idUA').textContent = shortUA(p.userAgent);
@@ -121,7 +125,12 @@ $('mode').addEventListener('change', async (e) => {
   await load();
 });
 $('preset').addEventListener('change', async (e) => {
-  await send('setSettings', { patch: { preset: e.target.value } });
+  // Picking a device means "look like this" → blend mode so it actually applies.
+  await send('setSettings', { patch: { mode: 'blend', preset: e.target.value } });
+  await load();
+});
+$('pool').addEventListener('change', async (e) => {
+  await send('setSettings', { patch: { randomPool: e.target.value } });
   await load();
 });
 $('regen').addEventListener('click', async () => {

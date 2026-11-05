@@ -5,7 +5,7 @@
 //  * publish a runtime config that content scripts read
 //  * keep HTTP headers (UA / Accept-Language / Sec-CH-UA) in sync via DNR
 
-import { DEFAULT_SETTINGS, PRESETS, randomProfile } from './lib/profiles.js';
+import { DEFAULT_SETTINGS, PRESETS, randomProfile, RANDOM_POOLS } from './lib/profiles.js';
 import { mulberry32, seedFrom } from './lib/rng.js';
 
 const SETTINGS_KEY = 'nebula:settings';
@@ -73,8 +73,10 @@ function resolveProfile(settings, seed) {
         : structuredClone(PRESETS[settings.preset] || PRESETS['win-chrome']);
     case 'per-site':
     case 'per-session':
-    default:
-      return randomProfile(mulberry32(seed));
+    default: {
+      const pool = RANDOM_POOLS[settings.randomPool] || RANDOM_POOLS.desktop;
+      return randomProfile(mulberry32(seed), pool);
+    }
   }
 }
 
@@ -118,6 +120,13 @@ async function updateHeaderRules(settings, profile) {
       headers.push({ header: 'sec-ch-ua-model', operation: 'set', value: `"${ua.model || ''}"` });
       headers.push({ header: 'sec-ch-ua-full-version', operation: 'set', value: `"${ua.uaFullVersion || ''}"` });
       headers.push({ header: 'sec-ch-ua-full-version-list', operation: 'set', value: buildFullVersionList(ua.brands, ua.uaFullVersion || '') });
+    } else {
+      // Safari / non-Chromium profiles never send Client Hints — strip them so
+      // the underlying Chromium browser does not betray the disguise.
+      for (const h of ['sec-ch-ua', 'sec-ch-ua-mobile', 'sec-ch-ua-platform', 'sec-ch-ua-platform-version',
+        'sec-ch-ua-arch', 'sec-ch-ua-bitness', 'sec-ch-ua-model', 'sec-ch-ua-full-version', 'sec-ch-ua-full-version-list']) {
+        headers.push({ header: h, operation: 'remove' });
+      }
     }
 
     const condition = {

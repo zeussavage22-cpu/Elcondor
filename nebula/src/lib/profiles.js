@@ -12,6 +12,9 @@ export const DEFAULT_SETTINGS = {
   //   'custom'     -> use the user-edited custom profile
   mode: 'per-session',
   preset: 'win-chrome',
+  // which device families the random modes draw from:
+  //   'desktop' -> win | mac | linux   'mobile' -> android | ios   'all' -> every family
+  randomPool: 'desktop',
   noise: 'medium', // low | medium | high — intensity of canvas/audio/webgl noise
   // per-protection master switches
   protections: {
@@ -173,6 +176,72 @@ export const PRESETS = {
       ]
     }
   }
+  ,
+  'ios-safari': {
+    label: 'iPhone · Safari',
+    platform: 'iPhone',
+    vendor: 'Apple Computer, Inc.',
+    userAgent:
+      'Mozilla/5.0 (iPhone; CPU iPhone OS 17_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.6 Mobile/15E148 Safari/604.1',
+    appVersion:
+      '5.0 (iPhone; CPU iPhone OS 17_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.6 Mobile/15E148 Safari/604.1',
+    hardwareConcurrency: 4,
+    // Safari does not expose deviceMemory — leave undefined so we hide it.
+    deviceMemory: undefined,
+    maxTouchPoints: 5,
+    language: 'en-US',
+    languages: ['en-US', 'en'],
+    screen: { width: 393, height: 852, availWidth: 393, availHeight: 852, colorDepth: 24, pixelDepth: 24, dpr: 3 },
+    timezone: 'America/New_York',
+    webgl: { vendor: 'Apple Inc.', renderer: 'Apple GPU' },
+    // Safari has NO Client Hints — null tells the shield to hide userAgentData
+    // and the background to strip Sec-CH-UA-* headers.
+    uaData: null
+  },
+  'ipad-safari': {
+    label: 'iPad · Safari',
+    platform: 'MacIntel', // iPadOS Safari reports MacIntel
+    vendor: 'Apple Computer, Inc.',
+    userAgent:
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.6 Safari/605.1.15',
+    appVersion:
+      '5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.6 Safari/605.1.15',
+    hardwareConcurrency: 4,
+    deviceMemory: undefined,
+    maxTouchPoints: 5,
+    language: 'en-US',
+    languages: ['en-US', 'en'],
+    screen: { width: 1024, height: 1366, availWidth: 1024, availHeight: 1366, colorDepth: 24, pixelDepth: 24, dpr: 2 },
+    timezone: 'America/New_York',
+    webgl: { vendor: 'Apple Inc.', renderer: 'Apple GPU' },
+    uaData: null
+  },
+  'android-samsung': {
+    label: 'Android · Samsung Galaxy',
+    platform: 'Linux armv81',
+    vendor: 'Google Inc.',
+    userAgent:
+      'Mozilla/5.0 (Linux; Android 14; SM-S918B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36',
+    appVersion:
+      '5.0 (Linux; Android 14; SM-S918B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36',
+    hardwareConcurrency: 8,
+    deviceMemory: 8,
+    maxTouchPoints: 5,
+    language: 'en-US',
+    languages: ['en-US', 'en'],
+    screen: { width: 384, height: 824, availWidth: 384, availHeight: 824, colorDepth: 24, pixelDepth: 24, dpr: 2.8125 },
+    timezone: 'America/New_York',
+    webgl: { vendor: 'Qualcomm', renderer: 'Adreno (TM) 740' },
+    uaData: {
+      mobile: true, platform: 'Android', platformVersion: '14.0.0', architecture: '', bitness: '', model: 'SM-S918B',
+      uaFullVersion: '131.0.6778.86',
+      brands: [
+        { brand: 'Chromium', version: '131' },
+        { brand: 'Not_A Brand', version: '24' },
+        { brand: 'Google Chrome', version: '131' }
+      ]
+    }
+  }
 };
 
 // Pools used by the randomizer. Everything is chosen so the pieces stay coherent.
@@ -223,66 +292,121 @@ function pick(rng, arr) {
   return arr[Math.floor(rng() * arr.length)];
 }
 
-// Build a fully coherent profile from a seeded RNG. os is 'win' | 'mac'.
-export function randomProfile(rng, os) {
-  os = os || (rng() < 0.6 ? 'win' : 'mac');
+// Extra device pools used by the randomizer (kept local for clarity).
+const DEVICE_POOLS = {
+  linux: {
+    screens: [
+      { width: 1920, height: 1080, availHeight: 1053 },
+      { width: 1366, height: 768, availHeight: 741 },
+      { width: 2560, height: 1440, availHeight: 1413 }
+    ],
+    webgl: [
+      { vendor: 'Google Inc. (Intel)', renderer: 'ANGLE (Intel, Mesa Intel(R) UHD Graphics (CML GT2), OpenGL 4.6)' },
+      { vendor: 'Google Inc. (NVIDIA Corporation)', renderer: 'ANGLE (NVIDIA Corporation, NVIDIA GeForce GTX 1060/PCIe/SSE2, OpenGL 4.6)' },
+      { vendor: 'Google Inc. (AMD)', renderer: 'ANGLE (AMD, AMD Radeon RX 6600 (navi23 LLVM 15.0.7), OpenGL 4.6)' }
+    ]
+  },
+  android: [
+    { model: 'Pixel 7', ua: 'Pixel 7', screen: { width: 412, height: 915, dpr: 2.625 }, webgl: { vendor: 'Qualcomm', renderer: 'Adreno (TM) 730' } },
+    { model: 'Pixel 8', ua: 'Pixel 8', screen: { width: 412, height: 915, dpr: 2.625 }, webgl: { vendor: 'Qualcomm', renderer: 'Adreno (TM) 735' } },
+    { model: 'SM-S918B', ua: 'SM-S918B', screen: { width: 384, height: 824, dpr: 2.8125 }, webgl: { vendor: 'Qualcomm', renderer: 'Adreno (TM) 740' } },
+    { model: 'SM-A536B', ua: 'SM-A536B', screen: { width: 384, height: 854, dpr: 2.8125 }, webgl: { vendor: 'ARM', renderer: 'Mali-G68' } }
+  ],
+  ios: [
+    { ver: '17_6', version: '17.6', screen: { width: 393, height: 852, dpr: 3 } }, // iPhone 15/14 Pro
+    { ver: '17_5_1', version: '17.5.1', screen: { width: 390, height: 844, dpr: 3 } }, // iPhone 13/14
+    { ver: '16_7', version: '16.7', screen: { width: 428, height: 926, dpr: 3 } } // iPhone 13 Pro Max
+  ]
+};
+
+export const RANDOM_POOLS = {
+  desktop: ['win', 'mac', 'linux'],
+  mobile: ['android', 'ios'],
+  all: ['win', 'mac', 'linux', 'android', 'ios']
+};
+
+// Build a fully coherent profile from a seeded RNG.
+// `pool` is an array of os keys; defaults to the desktop set.
+export function randomProfile(rng, pool) {
+  pool = pool && pool.length ? pool : RANDOM_POOLS.desktop;
+  const os = pick(rng, pool);
   const cv = pick(rng, POOLS.chromeVersions);
   const loc = pick(rng, POOLS.locales);
   const tz = pick(rng, POOLS.timezones);
   const cores = pick(rng, POOLS.cores);
   const mem = pick(rng, POOLS.memory);
+  const chromeBrands = [
+    { brand: 'Chromium', version: cv.major },
+    { brand: 'Not_A Brand', version: '24' },
+    { brand: 'Google Chrome', version: cv.major }
+  ];
 
   if (os === 'mac') {
     const sc = pick(rng, POOLS.mac.screens);
-    const gl = pick(rng, POOLS.mac.webgl);
     return {
-      platform: 'MacIntel',
-      vendor: 'Google Inc.',
+      platform: 'MacIntel', vendor: 'Google Inc.',
       userAgent: `Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${cv.major}.0.0.0 Safari/537.36`,
       appVersion: `5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${cv.major}.0.0.0 Safari/537.36`,
-      hardwareConcurrency: cores,
-      deviceMemory: mem,
-      maxTouchPoints: 0,
-      language: loc.language,
-      languages: loc.languages,
+      hardwareConcurrency: cores, deviceMemory: mem, maxTouchPoints: 0,
+      language: loc.language, languages: loc.languages,
       screen: { width: sc.width, height: sc.height, availWidth: sc.width, availHeight: sc.availHeight, colorDepth: sc.colorDepth, pixelDepth: sc.colorDepth, dpr: sc.dpr },
-      timezone: tz,
-      webgl: gl,
-      uaData: {
-        mobile: false, platform: 'macOS', platformVersion: '14.6.1', architecture: 'arm', bitness: '64', model: '',
-        uaFullVersion: cv.full,
-        brands: [
-          { brand: 'Chromium', version: cv.major },
-          { brand: 'Not_A Brand', version: '24' },
-          { brand: 'Google Chrome', version: cv.major }
-        ]
-      }
+      timezone: tz, webgl: pick(rng, POOLS.mac.webgl),
+      uaData: { mobile: false, platform: 'macOS', platformVersion: '14.6.1', architecture: 'arm', bitness: '64', model: '', uaFullVersion: cv.full, brands: chromeBrands }
     };
   }
 
+  if (os === 'linux') {
+    const sc = pick(rng, DEVICE_POOLS.linux.screens);
+    return {
+      platform: 'Linux x86_64', vendor: 'Google Inc.',
+      userAgent: `Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${cv.major}.0.0.0 Safari/537.36`,
+      appVersion: `5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${cv.major}.0.0.0 Safari/537.36`,
+      hardwareConcurrency: cores, deviceMemory: mem, maxTouchPoints: 0,
+      language: loc.language, languages: loc.languages,
+      screen: { width: sc.width, height: sc.height, availWidth: sc.width, availHeight: sc.availHeight, colorDepth: 24, pixelDepth: 24, dpr: 1 },
+      timezone: tz, webgl: pick(rng, DEVICE_POOLS.linux.webgl),
+      uaData: { mobile: false, platform: 'Linux', platformVersion: '6.5.0', architecture: 'x86', bitness: '64', model: '', uaFullVersion: cv.full, brands: chromeBrands }
+    };
+  }
+
+  if (os === 'android') {
+    const d = pick(rng, DEVICE_POOLS.android);
+    return {
+      platform: 'Linux armv81', vendor: 'Google Inc.',
+      userAgent: `Mozilla/5.0 (Linux; Android 14; ${d.ua}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${cv.major}.0.0.0 Mobile Safari/537.36`,
+      appVersion: `5.0 (Linux; Android 14; ${d.ua}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${cv.major}.0.0.0 Mobile Safari/537.36`,
+      hardwareConcurrency: 8, deviceMemory: 8, maxTouchPoints: 5,
+      language: loc.language, languages: loc.languages,
+      screen: { width: d.screen.width, height: d.screen.height, availWidth: d.screen.width, availHeight: d.screen.height, colorDepth: 24, pixelDepth: 24, dpr: d.screen.dpr },
+      timezone: tz, webgl: d.webgl,
+      uaData: { mobile: true, platform: 'Android', platformVersion: '14.0.0', architecture: '', bitness: '', model: d.model, uaFullVersion: cv.full, brands: chromeBrands }
+    };
+  }
+
+  if (os === 'ios') {
+    const d = pick(rng, DEVICE_POOLS.ios);
+    return {
+      platform: 'iPhone', vendor: 'Apple Computer, Inc.',
+      userAgent: `Mozilla/5.0 (iPhone; CPU iPhone OS ${d.ver} like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/${d.version} Mobile/15E148 Safari/604.1`,
+      appVersion: `5.0 (iPhone; CPU iPhone OS ${d.ver} like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/${d.version} Mobile/15E148 Safari/604.1`,
+      hardwareConcurrency: 4, deviceMemory: undefined, maxTouchPoints: 5,
+      language: loc.language, languages: loc.languages,
+      screen: { width: d.screen.width, height: d.screen.height, availWidth: d.screen.width, availHeight: d.screen.height, colorDepth: 24, pixelDepth: 24, dpr: d.screen.dpr },
+      timezone: tz, webgl: { vendor: 'Apple Inc.', renderer: 'Apple GPU' },
+      uaData: null
+    };
+  }
+
+  // default: Windows
   const sc = pick(rng, POOLS.win.screens);
-  const gl = pick(rng, POOLS.win.webgl);
   return {
-    platform: 'Win32',
-    vendor: 'Google Inc.',
+    platform: 'Win32', vendor: 'Google Inc.',
     userAgent: `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${cv.major}.0.0.0 Safari/537.36`,
     appVersion: `5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${cv.major}.0.0.0 Safari/537.36`,
-    hardwareConcurrency: cores,
-    deviceMemory: mem,
-    maxTouchPoints: 0,
-    language: loc.language,
-    languages: loc.languages,
+    hardwareConcurrency: cores, deviceMemory: mem, maxTouchPoints: 0,
+    language: loc.language, languages: loc.languages,
     screen: { width: sc.width, height: sc.height, availWidth: sc.width, availHeight: sc.availHeight, colorDepth: 24, pixelDepth: 24, dpr: 1 },
-    timezone: tz,
-    webgl: gl,
-    uaData: {
-      mobile: false, platform: 'Windows', platformVersion: '15.0.0', architecture: 'x86', bitness: '64', model: '',
-      uaFullVersion: cv.full,
-      brands: [
-        { brand: 'Chromium', version: cv.major },
-        { brand: 'Not_A Brand', version: '24' },
-        { brand: 'Google Chrome', version: cv.major }
-      ]
-    }
+    timezone: tz, webgl: pick(rng, POOLS.win.webgl),
+    uaData: { mobile: false, platform: 'Windows', platformVersion: '15.0.0', architecture: 'x86', bitness: '64', model: '', uaFullVersion: cv.full, brands: chromeBrands }
   };
 }

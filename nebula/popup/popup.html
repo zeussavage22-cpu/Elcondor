@@ -42,10 +42,19 @@
         <option value="custom">Perfil personalizado</option>
       </select>
     </div>
-    <div class="row" id="presetRow" hidden>
-      <span class="label">Preset</span>
+    <div class="row" id="poolRow">
+      <span class="label">Aleatorizar entre</span>
+      <select id="pool">
+        <option value="desktop">Escritorio (Win/Mac/Linux)</option>
+        <option value="mobile">Móvil (Android/iOS)</option>
+        <option value="all">Todos</option>
+      </select>
+    </div>
+    <div class="row" id="presetRow">
+      <span class="label">Dispositivo</span>
       <select id="preset"></select>
     </div>
+    <p class="hint-sm" id="presetHint">Elegir un dispositivo activa el modo «Mimetizar».</p>
     <button class="ghost" id="regen">↻ Generar nueva identidad</button>
   </section>
 
