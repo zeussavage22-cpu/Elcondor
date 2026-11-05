@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="options.css" />
+  <title>Nébula · Ajustes</title>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <span class="logo">◓</span>
+      <div>
+        <h1>Nébula</h1>
+        <p>Ajustes avanzados del escudo anti-fingerprinting</p>
+      </div>
+      <label class="switch"><input type="checkbox" id="master" /><span class="slider"></span></label>
+    </header>
+
+    <section class="panel">
+      <h2>General</h2>
+      <div class="field">
+        <label>Modo de identidad</label>
+        <select id="mode">
+          <option value="per-session">Aleatorio por sesión del navegador</option>
+          <option value="per-site">Aleatorio por sitio</option>
+          <option value="blend">Mimetizar con un preset común</option>
+          <option value="custom">Perfil personalizado</option>
+        </select>
+        <p class="hint">«Mimetizar» reduce tu entropía pareciéndote a la mayoría. «Aleatorio» cambia tu identidad para que no te sigan entre sesiones.</p>
+      </div>
+      <div class="field" id="presetField">
+        <label>Preset</label>
+        <select id="preset"></select>
+      </div>
+      <div class="field">
+        <label>Intensidad del ruido (canvas / audio / WebGL)</label>
+        <select id="noise">
+          <option value="low">Baja (más sutil, menos roturas)</option>
+          <option value="medium">Media (recomendada)</option>
+          <option value="high">Alta (máxima aleatoriedad)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>WebRTC</label>
+        <select id="webrtcMode">
+          <option value="safe">Seguro: ocultar IP local</option>
+          <option value="relay">Solo relay (TURN)</option>
+          <option value="off">Sin cambios</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Precisión del reloj (ms)</label>
+        <select id="timingPrecisionMs">
+          <option value="0.001">0.001 (apenas afecta)</option>
+          <option value="0.1">0.1 (recomendada)</option>
+          <option value="1">1 ms</option>
+          <option value="100">100 ms (máxima defensa anti-timing)</option>
+        </select>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Protecciones individuales</h2>
+      <div class="toggles" id="toggles"></div>
+    </section>
+
+    <section class="panel">
+      <h2>Lista blanca de sitios</h2>
+      <p class="hint">Un dominio por línea. Nébula se desactiva por completo en estos sitios (útil para bancos o sitios que rompan). Ej.: <code>mibanco.com</code></p>
+      <textarea id="allowlist" rows="5" placeholder="ejemplo.com&#10;otro-sitio.org"></textarea>
+    </section>
+
+    <section class="panel">
+      <h2>Perfil personalizado (avanzado)</h2>
+      <p class="hint">Editar en JSON. Se usa cuando el modo es «Perfil personalizado». Botón para precargar desde el preset actual.</p>
+      <button class="btn ghost" id="loadPreset">Cargar desde preset actual</button>
+      <textarea id="customProfile" rows="14" spellcheck="false" placeholder='{ "userAgent": "...", "platform": "Win32", ... }'></textarea>
+      <p class="err" id="jsonErr"></p>
+    </section>
+
+    <section class="panel">
+      <h2>Copia de seguridad</h2>
+      <div class="buttons">
+        <button class="btn" id="export">Exportar ajustes</button>
+        <button class="btn" id="import">Importar ajustes</button>
+        <button class="btn danger" id="reset">Restablecer todo</button>
+      </div>
+      <input type="file" id="importFile" accept="application/json" hidden />
+    </section>
+
+    <footer>
+      <span>Nébula · código abierto · MIT</span>
+      <span id="status"></span>
+    </footer>
+  </div>
+  <script src="options.js"></script>
+</body>
+</html>

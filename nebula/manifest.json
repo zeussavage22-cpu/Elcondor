@@ -1,0 +1,68 @@
+{
+  "manifest_version": 3,
+  "name": "Nébula — Anti-Fingerprint Shield",
+  "version": "1.0.0",
+  "description": "Protección de privacidad avanzada contra el fingerprinting del navegador. Código abierto. Canvas, WebGL, audio, fuentes, User-Agent, zona horaria, WebRTC y más.",
+  "icons": {
+    "16": "icons/16.png",
+    "32": "icons/32.png",
+    "48": "icons/48.png",
+    "128": "icons/128.png"
+  },
+  "permissions": [
+    "storage",
+    "scripting",
+    "declarativeNetRequest",
+    "tabs",
+    "activeTab",
+    "webNavigation"
+  ],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "src/background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_title": "Nébula Anti-Fingerprint",
+    "default_icon": {
+      "16": "icons/16.png",
+      "32": "icons/32.png",
+      "48": "icons/48.png",
+      "128": "icons/128.png"
+    }
+  },
+  "options_ui": {
+    "page": "options/options.html",
+    "open_in_tab": true
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "all_frames": true,
+      "match_about_blank": true,
+      "run_at": "document_start",
+      "js": ["src/content/bridge.js"],
+      "world": "ISOLATED"
+    },
+    {
+      "matches": ["<all_urls>"],
+      "all_frames": true,
+      "match_about_blank": true,
+      "run_at": "document_start",
+      "js": ["src/content/protect.js"],
+      "world": "MAIN"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "matches": ["<all_urls>"],
+      "resources": ["src/content/protect.js"]
+    }
+  ],
+  "commands": {
+    "_execute_action": {
+      "suggested_key": { "default": "Ctrl+Shift+N", "mac": "Command+Shift+N" }
+    }
+  }
+}

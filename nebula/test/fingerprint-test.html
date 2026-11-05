@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Nébula · Prueba de huella</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background:#0d0e1c; color:#e9eaf7; max-width:820px; margin:0 auto; padding:24px; }
+    h1 { color:#38d6c4; } h2 { color:#6d5efc; font-size:15px; margin-top:24px; }
+    table { width:100%; border-collapse:collapse; font-size:13px; }
+    td { padding:6px 8px; border-bottom:1px solid #222442; vertical-align:top; }
+    td:first-child { color:#9aa0c0; width:200px; }
+    .hash { font-family: ui-monospace, monospace; color:#38d6c4; word-break:break-all; }
+    .note { color:#9aa0c0; font-size:12px; }
+    button { background:#6d5efc; color:#fff; border:none; border-radius:8px; padding:8px 14px; cursor:pointer; margin:8px 0; }
+  </style>
+</head>
+<body>
+  <h1>◓ Nébula · Prueba de huella</h1>
+  <p class="note">Carga esta página con la extensión activada y desactivada para comparar. Pulsa «Regenerar identidad» en el popup y recarga: los hashes de canvas/audio/WebGL deberían cambiar.</p>
+  <button onclick="run()">↻ Volver a medir</button>
+
+  <h2>Hashes (deberían cambiar al regenerar la identidad)</h2>
+  <table>
+    <tr><td>Canvas 2D</td><td class="hash" id="canvasHash">…</td></tr>
+    <tr><td>WebGL</td><td class="hash" id="webglHash">…</td></tr>
+    <tr><td>Audio</td><td class="hash" id="audioHash">…</td></tr>
+  </table>
+
+  <h2>Identidad declarada</h2>
+  <table id="idTable"></table>
+
+  <script>
+    async function sha(str){
+      const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+      return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('').slice(0,32);
+    }
+    function canvasFP(){
+      const c = document.createElement('canvas'); c.width=240; c.height=60;
+      const x = c.getContext('2d');
+      x.textBaseline='top'; x.font='16px Arial';
+      x.fillStyle='#f60'; x.fillRect(10,10,120,30);
+      x.fillStyle='#069'; x.fillText('Nébula FP 😃 1234',14,16);
+      x.strokeStyle='rgba(120,0,200,.5)'; x.beginPath(); x.arc(60,30,20,0,7); x.stroke();
+      return c.toDataURL();
+    }
+    function webglFP(){
+      try {
+        const c=document.createElement('canvas'); const gl=c.getContext('webgl');
+        const dbg=gl.getExtension('WEBGL_debug_renderer_info');
+        const v = dbg?gl.getParameter(dbg.UNMASKED_VENDOR_WEBGL):'';
+        const r = dbg?gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL):'';
+        return v+' | '+r;
+      } catch(e){ return 'n/a'; }
+    }
+    async function audioFP(){
+      try{
+        const ctx=new (window.OfflineAudioContext||window.webkitOfflineAudioContext)(1,44100,44100);
+        const osc=ctx.createOscillator(); osc.type='triangle'; osc.frequency.value=10000;
+        const comp=ctx.createDynamicsCompressor();
+        osc.connect(comp); comp.connect(ctx.destination); osc.start(0);
+        const buf=await ctx.startRendering();
+        const data=buf.getChannelData(0).slice(4000,4100);
+        let s=0; for(const v of data) s+=Math.abs(v);
+        return s.toString();
+      }catch(e){ return 'n/a'; }
+    }
+    async function run(){
+      document.getElementById('canvasHash').textContent = await sha(canvasFP());
+      document.getElementById('webglHash').textContent = webglFP() + '  →  ' + await sha(webglFP());
+      document.getElementById('audioHash').textContent = await sha(await audioFP());
+      const u = navigator.userAgentData;
+      const rows = {
+        'navigator.userAgent': navigator.userAgent,
+        'platform': navigator.platform,
+        'languages': (navigator.languages||[]).join(', '),
+        'hardwareConcurrency': navigator.hardwareConcurrency,
+        'deviceMemory': navigator.deviceMemory,
+        'screen': screen.width+'×'+screen.height+' @'+window.devicePixelRatio+'x',
+        'colorDepth': screen.colorDepth,
+        'timezone': Intl.DateTimeFormat().resolvedOptions().timeZone,
+        'getTimezoneOffset()': new Date().getTimezoneOffset(),
+        'webdriver': navigator.webdriver,
+        'uaData.platform': u ? u.platform : 'n/a',
+        'plugins': [...navigator.plugins].map(p=>p.name).join(', ') || '(ninguno)'
+      };
+      const t=document.getElementById('idTable'); t.innerHTML='';
+      for(const k in rows){ const tr=document.createElement('tr'); tr.innerHTML='<td>'+k+'</td><td>'+String(rows[k])+'</td>'; t.appendChild(tr); }
+    }
+    run();
+  </script>
+</body>
+</html>

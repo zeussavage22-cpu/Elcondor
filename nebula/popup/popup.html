@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="popup.css" />
+  <title>Nébula</title>
+</head>
+<body>
+  <header class="hdr">
+    <div class="brand">
+      <span class="logo">◓</span>
+      <div>
+        <h1>Nébula</h1>
+        <p class="tag">Anti-Fingerprint Shield</p>
+      </div>
+    </div>
+    <label class="switch" title="Activar / desactivar">
+      <input type="checkbox" id="master" />
+      <span class="slider"></span>
+    </label>
+  </header>
+
+  <section class="card" id="siteCard">
+    <div class="row">
+      <span class="label">Este sitio</span>
+      <span class="host" id="host">—</span>
+    </div>
+    <label class="checkrow">
+      <input type="checkbox" id="siteAllow" />
+      <span>Desactivar Nébula en este sitio (lista blanca)</span>
+    </label>
+  </section>
+
+  <section class="card">
+    <div class="row">
+      <span class="label">Modo</span>
+      <select id="mode">
+        <option value="per-session">Aleatorio por sesión</option>
+        <option value="per-site">Aleatorio por sitio</option>
+        <option value="blend">Mimetizar (preset)</option>
+        <option value="custom">Perfil personalizado</option>
+      </select>
+    </div>
+    <div class="row" id="presetRow" hidden>
+      <span class="label">Preset</span>
+      <select id="preset"></select>
+    </div>
+    <button class="ghost" id="regen">↻ Generar nueva identidad</button>
+  </section>
+
+  <section class="card identity">
+    <h2>Identidad activa</h2>
+    <dl>
+      <dt>Navegador</dt><dd id="idUA">—</dd>
+      <dt>Plataforma</dt><dd id="idPlatform">—</dd>
+      <dt>Pantalla</dt><dd id="idScreen">—</dd>
+      <dt>Zona horaria</dt><dd id="idTZ">—</dd>
+      <dt>GPU (WebGL)</dt><dd id="idGPU">—</dd>
+      <dt>Núcleos / RAM</dt><dd id="idHW">—</dd>
+      <dt>Idioma</dt><dd id="idLang">—</dd>
+    </dl>
+  </section>
+
+  <section class="card">
+    <h2>Protecciones</h2>
+    <div class="grid" id="toggles"></div>
+  </section>
+
+  <footer class="ftr">
+    <button class="link" id="openOptions">Ajustes avanzados</button>
+    <a class="link" id="testLink" href="https://coveryourtracks.eff.org/" target="_blank" rel="noopener">Probar huella ↗</a>
+  </footer>
+
+  <script src="popup.js"></script>
+</body>
+</html>
