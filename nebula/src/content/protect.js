@@ -440,21 +440,83 @@
   // ====================================================================== //
   (function timezone() {
     const RealDTF = window.Intl && Intl.DateTimeFormat;
+    const WD = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const MO = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const activeTz = () => (on('timezone') && CFG.profile && CFG.profile.timezone) ? CFG.profile.timezone : null;
+
+    function partsIn(tz, date) {
+      const dtf = new RealDTF('en-US', { timeZone: tz, hour12: false, weekday: 'short', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      const p = {};
+      for (const x of dtf.formatToParts(date)) p[x.type] = x.value;
+      if (p.hour === '24') p.hour = '00';
+      return p;
+    }
     function offsetFor(tz, date) {
       try {
-        const dtf = new RealDTF('en-US', { timeZone: tz, hour12: false, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' });
-        const parts = {};
-        for (const p of dtf.formatToParts(date)) parts[p.type] = p.value;
-        const asUTC = Date.UTC(+parts.year, +parts.month - 1, +parts.day, +parts.hour, +parts.minute, +parts.second);
+        const p = partsIn(tz, date);
+        const asUTC = Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute, +p.second);
         return Math.round((date.getTime() - asUTC) / 60000);
       } catch { return date.getTimezoneOffset(); }
+    }
+    function fmtOff(mins) {
+      const sign = mins <= 0 ? '+' : '-';
+      const a = Math.abs(mins);
+      return 'GMT' + sign + String(Math.floor(a / 60)).padStart(2, '0') + String(a % 60).padStart(2, '0');
+    }
+    function longName(tz, date) {
+      try {
+        const dtf = new RealDTF('en-US', { timeZone: tz, timeZoneName: 'long' });
+        for (const x of dtf.formatToParts(date)) if (x.type === 'timeZoneName') return x.value;
+      } catch {}
+      return tz;
     }
 
     const origGetTZO = Date.prototype.getTimezoneOffset;
     Date.prototype.getTimezoneOffset = wrap(origGetTZO, function getTimezoneOffset() {
-      if (on('timezone') && CFG.profile && CFG.profile.timezone) return offsetFor(CFG.profile.timezone, this);
-      return origGetTZO.call(this);
+      const tz = activeTz();
+      return tz ? offsetFor(tz, this) : origGetTZO.call(this);
     }, 'getTimezoneOffset');
+
+    // Date string methods also leak the real zone — rebuild them in the profile tz.
+    const oToString = Date.prototype.toString;
+    Date.prototype.toString = wrap(oToString, function toString() {
+      const tz = activeTz();
+      if (!tz) return oToString.call(this);
+      if (isNaN(this.getTime())) return 'Invalid Date';
+      const p = partsIn(tz, this);
+      return `${p.weekday} ${MO[+p.month - 1]} ${p.day} ${p.year} ${p.hour}:${p.minute}:${p.second} ${fmtOff(offsetFor(tz, this))} (${longName(tz, this)})`;
+    }, 'toString');
+
+    const oToTimeString = Date.prototype.toTimeString;
+    Date.prototype.toTimeString = wrap(oToTimeString, function toTimeString() {
+      const tz = activeTz();
+      if (!tz || isNaN(this.getTime())) return oToTimeString.call(this);
+      const p = partsIn(tz, this);
+      return `${p.hour}:${p.minute}:${p.second} ${fmtOff(offsetFor(tz, this))} (${longName(tz, this)})`;
+    }, 'toTimeString');
+
+    const oToDateString = Date.prototype.toDateString;
+    Date.prototype.toDateString = wrap(oToDateString, function toDateString() {
+      const tz = activeTz();
+      if (!tz || isNaN(this.getTime())) return oToDateString.call(this);
+      const p = partsIn(tz, this);
+      return `${p.weekday} ${MO[+p.month - 1]} ${p.day} ${p.year}`;
+    }, 'toDateString');
+
+    function patchLocale(name) {
+      const orig = Date.prototype[name];
+      if (!orig) return;
+      Date.prototype[name] = wrap(orig, function (locales, options) {
+        const tz = activeTz();
+        options = options || {};
+        if (tz && !options.timeZone) options = { ...options, timeZone: tz };
+        if (on('locale') && CFG.profile && CFG.profile.language && locales === undefined) locales = CFG.profile.language;
+        return orig.call(this, locales, options);
+      }, name);
+    }
+    patchLocale('toLocaleString');
+    patchLocale('toLocaleDateString');
+    patchLocale('toLocaleTimeString');
 
     if (RealDTF) {
       const patched = function DateTimeFormat(locales, options) {
