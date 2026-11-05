@@ -330,7 +330,12 @@
       const [cat, getVal] = map[prop];
       const real = navigator[prop];
       defineGetter(NP, prop, function () {
-        return on(cat) && getVal() !== undefined ? getVal() : real;
+        if (!on(cat)) return real;
+        const v = getVal();
+        // deviceMemory must be hidden (undefined) on profiles that don't define it
+        // (Safari/iOS never exposes it) — so return the profile value even when undefined.
+        if (prop === 'deviceMemory') return CFG.profile ? v : real;
+        return v !== undefined ? v : real;
       });
     }
 
