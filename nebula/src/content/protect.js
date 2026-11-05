@@ -70,6 +70,11 @@
   function noiseAmp() {
     return CFG.noise === 'low' ? 1 : CFG.noise === 'high' ? 4 : 2;
   }
+  // Fresh salt per read (default) makes every canvas/audio/webgl read differ, which
+  // is what breaks fingerprinting hardest; 'session' keeps it stable per site.
+  function noiseSalt() {
+    return CFG.noiseStrategy === 'session' ? 0 : (Math.random() * 0x7fffffff) | 0;
+  }
 
   // ---------------------------------------------------- native-code masking
   const realFnToString = Function.prototype.toString;
@@ -135,7 +140,7 @@
 
     function perturb(data, w, h) {
       const amp = noiseAmp();
-      const seed = ORIGIN_SEED;
+      const seed = ORIGIN_SEED ^ noiseSalt();
       const n = data.length;
       // cap heavy work on very large surfaces (real content, not fingerprints)
       const step = w * h > 2000000 ? 8 : 1;
@@ -223,8 +228,9 @@
         const r = origReadPixels.call(this, x, y, w, h, fmt, type, pixels);
         if (on('webgl') && pixels && pixels.length && pixels.BYTES_PER_ELEMENT === 1 && w * h < 500000) {
           const amp = noiseAmp();
+          const seed = ORIGIN_SEED ^ noiseSalt();
           for (let i = 0; i < pixels.length; i += 4) {
-            const d = hash32(ORIGIN_SEED, i);
+            const d = hash32(seed, i);
             pixels[i] = clampB(pixels[i] + ((d & 3) - (amp >> 1)));
           }
         }
@@ -240,7 +246,7 @@
   (function audio() {
     const amp = 1e-7;
     function noiseArr(arr, floats) {
-      const seed = ORIGIN_SEED;
+      const seed = ORIGIN_SEED ^ noiseSalt();
       for (let i = 0; i < arr.length; i += 1) {
         const d = hash32(seed, i) / 4294967296 - 0.5;
         if (floats) arr[i] = arr[i] + d * amp * 100;

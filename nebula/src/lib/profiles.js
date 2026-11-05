@@ -16,6 +16,13 @@ export const DEFAULT_SETTINGS = {
   //   'desktop' -> win | mac | linux   'mobile' -> android | ios   'all' -> every family
   randomPool: 'desktop',
   noise: 'medium', // low | medium | high — intensity of canvas/audio/webgl noise
+  // noiseStrategy:
+  //   'session'  -> stable within a session, different per site (DEFAULT; stealthy —
+  //                 repeated reads match, so it does not look like a randomizing bot)
+  //   'per-read' -> fresh randomness on every canvas/audio/webgl read (tools like
+  //                 Cover Your Tracks flag this as "randomized", but anti-fraud
+  //                 systems can notice the per-read changes)
+  noiseStrategy: 'session',
   // per-protection master switches
   protections: {
     canvas: true,

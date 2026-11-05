@@ -51,6 +51,14 @@
         </select>
       </div>
       <div class="field">
+        <label>Estrategia de ruido</label>
+        <select id="noiseStrategy">
+          <option value="session">Estable por sesión (sigiloso, recomendado)</option>
+          <option value="per-read">Aleatorio por lectura (Cover Your Tracks lo marca «aleatorizada»)</option>
+        </select>
+        <p class="hint">«Estable por sesión» (recomendado): la huella es coherente dentro de la sesión y distinta por sitio, así <b>no pareces un bot</b>; cambia cada vez que regeneras identidad. «Por lectura»: cambia en cada medición — herramientas como Cover Your Tracks lo reconocen como «aleatorizada», pero un sistema antifraude puede notar el cambio continuo.</p>
+      </div>
+      <div class="field">
         <label>WebRTC</label>
         <select id="webrtcMode">
           <option value="safe">Seguro: ocultar IP local</option>

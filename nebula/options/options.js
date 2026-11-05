@@ -24,6 +24,7 @@ function render() {
   $('master').checked = s.enabled;
   $('mode').value = s.mode;
   $('noise').value = s.noise;
+  $('noiseStrategy').value = s.noiseStrategy || 'per-read';
   $('webrtcMode').value = s.webrtcMode;
   $('timingPrecisionMs').value = String(s.timingPrecisionMs);
 
@@ -75,6 +76,7 @@ $('mode').addEventListener('change', (e) => { save({ mode: e.target.value }).the
 $('preset').addEventListener('change', (e) => { save({ mode: 'blend', preset: e.target.value }).then(load); });
 $('pool').addEventListener('change', (e) => { save({ randomPool: e.target.value }).then(load); });
 $('noise').addEventListener('change', (e) => save({ noise: e.target.value }));
+$('noiseStrategy').addEventListener('change', (e) => save({ noiseStrategy: e.target.value }));
 $('webrtcMode').addEventListener('change', (e) => save({ webrtcMode: e.target.value }));
 $('timingPrecisionMs').addEventListener('change', (e) => save({ timingPrecisionMs: parseFloat(e.target.value) }));
 

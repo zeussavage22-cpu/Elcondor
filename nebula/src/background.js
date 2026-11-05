@@ -169,6 +169,7 @@ async function rebuild() {
     enabled: settings.enabled,
     mode: settings.mode,
     noise: settings.noise,
+    noiseStrategy: settings.noiseStrategy,
     protections: settings.protections,
     webrtcMode: settings.webrtcMode,
     timingPrecisionMs: settings.timingPrecisionMs,

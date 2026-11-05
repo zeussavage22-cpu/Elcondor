@@ -46,6 +46,7 @@
         enabled: true,
         host,
         noise: config.noise,
+        noiseStrategy: config.noiseStrategy,
         protections: config.protections,
         webrtcMode: config.webrtcMode,
         timingPrecisionMs: config.timingPrecisionMs,
