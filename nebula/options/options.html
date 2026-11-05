@@ -101,6 +101,16 @@
     </section>
 
     <section class="panel">
+      <h2>Perfil nuevo limpio</h2>
+      <p class="hint">Qué se borra al pulsar «Crear perfil nuevo y limpio» en el popup (además de generar una identidad nueva). El historial, las contraseñas y las descargas NO se tocan.</p>
+      <div class="toggles">
+        <label class="tog"><input type="checkbox" id="clean_cookies" /> Cookies</label>
+        <label class="tog"><input type="checkbox" id="clean_storage" /> Almacenamiento de sitios</label>
+        <label class="tog"><input type="checkbox" id="clean_cache" /> Caché</label>
+      </div>
+    </section>
+
+    <section class="panel">
       <h2>Lista blanca de sitios</h2>
       <p class="hint">Un dominio por línea. Nébula se desactiva por completo en estos sitios (útil para bancos o sitios que rompan). Ej.: <code>mibanco.com</code></p>
       <textarea id="allowlist" rows="5" placeholder="ejemplo.com&#10;otro-sitio.org"></textarea>

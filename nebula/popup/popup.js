@@ -153,6 +153,29 @@ $('regen').addEventListener('click', async () => {
   await send('regenerateSeed');
   await load();
 });
+$('newProfile').addEventListener('click', async () => {
+  const c = STATE.settings.cleanData || {};
+  const parts = [];
+  if (c.cookies) parts.push('cookies');
+  if (c.storage) parts.push('almacenamiento de sitios');
+  if (c.cache) parts.push('caché');
+  if (parts.length && !confirm('Se creará una identidad nueva y se borrará: ' + parts.join(', ') + '.\nEsto cerrará tu sesión en las webs abiertas. ¿Continuar?')) return;
+  const btn = $('newProfile');
+  const label = btn.textContent;
+  btn.textContent = 'Creando…';
+  btn.disabled = true;
+  const res = await send('newIdentity', { timezoneSource: STATE.settings.timezoneSource });
+  await load();
+  btn.textContent = label;
+  btn.disabled = false;
+  const vr = $('verifyResult');
+  vr.className = 'verify-result ok';
+  vr.textContent = '✨ Perfil nuevo creado' + (res && res.cleared ? ' y datos limpiados.' : '.') + ' Recargando página…';
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (tab && /^https?:/.test(tab.url || '')) chrome.tabs.reload(tab.id);
+  } catch {}
+});
 $('siteAllow').addEventListener('change', async (e) => {
   if (!currentHost) return;
   const base = etld(currentHost);

@@ -57,6 +57,8 @@ export const DEFAULT_SETTINGS = {
   },
   webrtcMode: 'safe', // safe (hide local IP) | relay (relay only) | off (no change)
   timingPrecisionMs: 0.1, // rounding applied to performance.now / Date.now
+  // what "new clean profile" wipes along with generating a fresh identity
+  cleanData: { cookies: true, storage: true, cache: true },
   // sites where Nébula does nothing (e.g. your bank). eTLD+1 or full hostnames.
   allowlist: [],
   customProfile: null // filled from a preset the first time the user edits it

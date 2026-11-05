@@ -69,6 +69,11 @@ function render() {
     grid.appendChild(lbl);
   });
 
+  const cd = s.cleanData || { cookies: true, storage: true, cache: true };
+  $('clean_cookies').checked = !!cd.cookies;
+  $('clean_storage').checked = !!cd.storage;
+  $('clean_cache').checked = !!cd.cache;
+
   $('allowlist').value = (s.allowlist || []).join('\n');
   if (s.customProfile) $('customProfile').value = JSON.stringify(s.customProfile, null, 2);
 }
@@ -91,6 +96,12 @@ $('preset').addEventListener('change', (e) => { save({ mode: 'blend', preset: e.
 $('pool').addEventListener('change', (e) => { save({ randomPool: e.target.value }).then(load); });
 $('region').addEventListener('change', (e) => { save({ timezoneRegion: e.target.value }).then(load); });
 $('timezoneSource').addEventListener('change', (e) => { save({ timezoneSource: e.target.value }).then(load); });
+function saveClean() {
+  save({ cleanData: { cookies: $('clean_cookies').checked, storage: $('clean_storage').checked, cache: $('clean_cache').checked } });
+}
+$('clean_cookies').addEventListener('change', saveClean);
+$('clean_storage').addEventListener('change', saveClean);
+$('clean_cache').addEventListener('change', saveClean);
 $('refreshGeo').addEventListener('click', async () => {
   $('geoStatus').textContent = 'Detectando…';
   await send('refreshGeo');

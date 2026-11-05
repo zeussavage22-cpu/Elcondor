@@ -63,6 +63,30 @@ async function regenerateSeed() {
   return seed;
 }
 
+// Wipe browsing state so a fresh identity is not linkable to the old one via
+// cookies / site storage / cache. Leaves history, passwords and downloads alone.
+async function clearBrowsingState(opts) {
+  opts = opts || { cookies: true, storage: true, cache: true };
+  const types = {};
+  if (opts.cookies) types.cookies = true;
+  if (opts.storage) {
+    types.localStorage = true;
+    types.indexedDB = true;
+    types.cacheStorage = true;
+    types.serviceWorkers = true;
+    types.webSQL = true;
+    types.fileSystems = true;
+  }
+  if (opts.cache) types.cache = true;
+  if (!Object.keys(types).length) return false;
+  try {
+    await chrome.browsingData.remove({ since: 0 }, types);
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
 // ---- profile resolution ----------------------------------------------------
 
 function resolveProfile(settings, seed) {
@@ -288,6 +312,25 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       case 'regenerateSeed': {
         const seed = await regenerateSeed();
         sendResponse({ ok: true, seed });
+        break;
+      }
+      case 'newIdentity': {
+        // Optionally switch to a chosen device first.
+        if (msg.device) await setSettings({ mode: 'blend', preset: msg.device });
+        const seed = await regenerateSeed(); // fresh fingerprint (+ rebuild)
+        if (msg.timezoneSource === 'ip') await getGeo(true).then(() => rebuild());
+        let cleared = false;
+        if (msg.clean !== false) {
+          const settings = await getSettings();
+          cleared = await clearBrowsingState(settings.cleanData);
+        }
+        const settings = await getSettings();
+        const profile = resolveProfile(settings, seed);
+        if (settings.timezoneSource === 'ip' && settings.protections.timezone) {
+          const geo = await getGeo(false);
+          if (geo && geo.timezone) profile.timezone = geo.timezone;
+        }
+        sendResponse({ ok: true, seed, cleared, profile });
         break;
       }
       case 'resetSettings': {
