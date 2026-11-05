@@ -51,6 +51,7 @@ select {
 }
 .primary:hover { filter: brightness(1.08); }
 .primary:disabled { opacity: .6; cursor: default; }
+.primary.warn { background: linear-gradient(90deg, #f5a623, #ff6b6b); }
 
 .hint-sm { font-size: 11px; color: var(--muted); margin: -2px 0 8px; }
 .verify-result { font-size: 12px; margin-top: 8px; line-height: 1.4; }

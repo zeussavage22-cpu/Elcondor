@@ -49,10 +49,11 @@ function render() {
   presetSel.value = s.preset;
   $('pool').value = s.randomPool || 'desktop';
   $('region').value = s.timezoneRegion || 'americas';
-  // Device picker always visible; pool/region only matter for the random modes.
+  // Device only in blend (mimic) mode; pool/region only in random modes.
   const rnd = (s.mode === 'per-session' || s.mode === 'per-site') ? '' : 'none';
   $('poolField').style.display = rnd;
   $('regionField').style.display = rnd;
+  $('presetField').style.display = (s.mode === 'blend') ? '' : 'none';
 
   const grid = $('toggles');
   grid.innerHTML = '';
@@ -92,7 +93,7 @@ async function load() {
 // ---- events ----
 $('master').addEventListener('change', (e) => save({ enabled: e.target.checked }));
 $('mode').addEventListener('change', (e) => { save({ mode: e.target.value }).then(load); });
-$('preset').addEventListener('change', (e) => { save({ mode: 'blend', preset: e.target.value }).then(load); });
+$('preset').addEventListener('change', (e) => { save({ preset: e.target.value }).then(load); });
 $('pool').addEventListener('change', (e) => { save({ randomPool: e.target.value }).then(load); });
 $('region').addEventListener('change', (e) => { save({ timezoneRegion: e.target.value }).then(load); });
 $('timezoneSource').addEventListener('change', (e) => { save({ timezoneSource: e.target.value }).then(load); });

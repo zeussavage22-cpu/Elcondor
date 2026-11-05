@@ -72,9 +72,11 @@ function render() {
     ? (geo && geo.timezone ? 'IP detectada: ' + geo.timezone : 'Detectando ubicación…')
     : '';
   const isRandom = s.mode === 'per-session' || s.mode === 'per-site';
+  // Device picker only in "blend" (mimic) mode; pool+region only in random modes.
+  $('presetRow').hidden = s.mode !== 'blend';
+  $('presetHint').hidden = s.mode !== 'blend';
   $('poolRow').hidden = !isRandom;
   $('regionRow').hidden = !isRandom;
-  $('presetHint').hidden = s.mode === 'blend';
 
   // identity
   $('idUA').textContent = shortUA(p.userAgent);
@@ -132,8 +134,8 @@ $('mode').addEventListener('change', async (e) => {
   await load();
 });
 $('preset').addEventListener('change', async (e) => {
-  // Picking a device means "look like this" → blend mode so it actually applies.
-  await send('setSettings', { patch: { mode: 'blend', preset: e.target.value } });
+  // Only shown in blend mode; just set the device, keep the mode as-is.
+  await send('setSettings', { patch: { preset: e.target.value } });
   await load();
 });
 $('pool').addEventListener('change', async (e) => {
@@ -153,28 +155,44 @@ $('regen').addEventListener('click', async () => {
   await send('regenerateSeed');
   await load();
 });
-$('newProfile').addEventListener('click', async () => {
-  const c = STATE.settings.cleanData || {};
-  const parts = [];
-  if (c.cookies) parts.push('cookies');
-  if (c.storage) parts.push('almacenamiento de sitios');
-  if (c.cache) parts.push('caché');
-  if (parts.length && !confirm('Se creará una identidad nueva y se borrará: ' + parts.join(', ') + '.\nEsto cerrará tu sesión en las webs abiertas. ¿Continuar?')) return;
+let npArmed = false;
+let npTimer = null;
+const NP_LABEL = '🆕 Crear perfil nuevo y limpio';
+
+async function doNewProfile() {
   const btn = $('newProfile');
-  const label = btn.textContent;
   btn.textContent = 'Creando…';
   btn.disabled = true;
-  const res = await send('newIdentity', { timezoneSource: STATE.settings.timezoneSource });
+  btn.classList.remove('warn');
+  let res;
+  try {
+    res = await send('newIdentity', { timezoneSource: STATE.settings.timezoneSource });
+  } catch (_) { res = null; }
   await load();
-  btn.textContent = label;
+  btn.textContent = NP_LABEL;
   btn.disabled = false;
   const vr = $('verifyResult');
   vr.className = 'verify-result ok';
-  vr.textContent = '✨ Perfil nuevo creado' + (res && res.cleared ? ' y datos limpiados.' : '.') + ' Recargando página…';
+  vr.textContent = '✨ Perfil nuevo creado' + (res && res.cleared ? ' + datos limpiados.' : '.') + ' Recargando…';
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (tab && /^https?:/.test(tab.url || '')) chrome.tabs.reload(tab.id);
   } catch {}
+}
+
+$('newProfile').addEventListener('click', async () => {
+  const btn = $('newProfile');
+  // Two-tap confirm (window.confirm is unreliable inside mobile popups).
+  if (!npArmed) {
+    npArmed = true;
+    btn.classList.add('warn');
+    btn.textContent = '⚠️ Toca otra vez: borrará cookies';
+    npTimer = setTimeout(() => { npArmed = false; btn.classList.remove('warn'); btn.textContent = NP_LABEL; }, 4000);
+    return;
+  }
+  clearTimeout(npTimer);
+  npArmed = false;
+  await doNewProfile();
 });
 $('siteAllow').addEventListener('change', async (e) => {
   if (!currentHost) return;
