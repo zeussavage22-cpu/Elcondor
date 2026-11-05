@@ -8,6 +8,21 @@
   const EVT_CONFIG = 'nebula:config';
   const EVT_READY = 'nebula:ready';
 
+  // Robustness: some Chromium-based mobile browsers ignore the manifest's
+  // content_scripts "world":"MAIN" and would run protect.js in the isolated
+  // world, where our overrides never reach the page. Inject it as a <script>
+  // element too; the __nebulaInstalled guard prevents a double install when
+  // the MAIN-world content script already ran.
+  try {
+    const url = chrome.runtime.getURL('src/content/protect.js');
+    const s = document.createElement('script');
+    s.src = url;
+    s.async = false;
+    s.setAttribute('data-nebula', '1');
+    (document.head || document.documentElement || document).appendChild(s);
+    s.onload = () => { try { s.remove(); } catch {} };
+  } catch {}
+
   function hostname() {
     try {
       return location.hostname || (top && top.location && top.location.hostname) || 'about';

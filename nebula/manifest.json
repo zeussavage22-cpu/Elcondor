@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Nébula — Anti-Fingerprint Shield",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Protección de privacidad avanzada contra el fingerprinting del navegador. Código abierto. Canvas, WebGL, audio, fuentes, User-Agent, zona horaria, WebRTC y más.",
   "icons": {
     "16": "icons/16.png",
