@@ -11,6 +11,8 @@ import { mulberry32, seedFrom } from './lib/rng.js';
 const SETTINGS_KEY = 'nebula:settings';
 const CONFIG_KEY = 'nebula:config'; // resolved runtime config read by content scripts
 const SEED_KEY = 'nebula:sessionSeed';
+const GEO_KEY = 'nebula:geo';
+const GEO_TTL_MS = 60 * 60 * 1000; // re-check the IP's timezone at most hourly
 const DNR_RULE_BASE = 1000;
 
 // ---- settings --------------------------------------------------------------
@@ -158,12 +160,57 @@ function normalizeDomains(list) {
   return out;
 }
 
+// ---- IP-based timezone -----------------------------------------------------
+// When enabled, the exposed timezone is made to match the geolocation of the
+// user's current IP (their real location, or their VPN/proxy exit) so that
+// sites which cross-check "JS timezone vs IP geolocation" see no mismatch.
+// This is the only feature that makes a network request, and only when on.
+
+async function getGeo(force) {
+  if (!force) {
+    const cached = (await chrome.storage.local.get(GEO_KEY))[GEO_KEY];
+    if (cached && cached.timezone && Date.now() - cached.ts < GEO_TTL_MS) return cached;
+  }
+  const endpoints = [
+    { url: 'https://ipapi.co/json/', map: (d) => ({ timezone: d.timezone, country: d.country_code || d.country }) },
+    { url: 'https://ipwho.is/', map: (d) => (d && d.success === false ? null : { timezone: d.timezone && d.timezone.id, country: d.country_code }) },
+    { url: 'https://worldtimeapi.org/api/ip', map: (d) => ({ timezone: d.timezone, country: null }) }
+  ];
+  for (const e of endpoints) {
+    try {
+      const res = await fetch(e.url, { cache: 'no-store' });
+      if (!res.ok) continue;
+      const d = await res.json();
+      const m = e.map(d);
+      if (m && m.timezone) {
+        const geo = { timezone: m.timezone, country: m.country || null, ts: Date.now(), source: e.url };
+        await chrome.storage.local.set({ [GEO_KEY]: geo });
+        return geo;
+      }
+    } catch {}
+  }
+  // Fallback: the browser's own configured timezone usually matches the home IP.
+  try {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const geo = { timezone: tz, country: null, ts: Date.now(), source: 'browser', fallback: true };
+    await chrome.storage.local.set({ [GEO_KEY]: geo });
+    return geo;
+  } catch {}
+  return null;
+}
+
 // ---- publish runtime config for content scripts ----------------------------
 
 async function rebuild() {
   const settings = await getSettings();
   const seed = await getSeed();
   const profile = resolveProfile(settings, seed);
+
+  // Align the timezone with the IP geolocation when that option is on.
+  if (settings.timezoneSource === 'ip' && settings.protections.timezone) {
+    const geo = await getGeo(false);
+    if (geo && geo.timezone) profile.timezone = geo.timezone;
+  }
 
   const config = {
     enabled: settings.enabled,
@@ -202,6 +249,9 @@ chrome.runtime.onInstalled.addListener(async () => {
 chrome.runtime.onStartup.addListener(async () => {
   // New browser session → fresh seed for per-session mode.
   await regenerateSeed();
+  // Refresh IP geolocation (the exit IP may have changed since last run).
+  const settings = await getSettings();
+  if (settings.timezoneSource === 'ip') { await getGeo(true); await rebuild(); }
 });
 
 // Make sure config exists whenever the worker wakes.
@@ -216,7 +266,18 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         const settings = await getSettings();
         const seed = await getSeed();
         const profile = resolveProfile(settings, seed);
-        sendResponse({ settings, seed, profile, presets: presetList() });
+        if (settings.timezoneSource === 'ip' && settings.protections.timezone) {
+          const geo = await getGeo(false);
+          if (geo && geo.timezone) profile.timezone = geo.timezone;
+        }
+        const geo = (await chrome.storage.local.get(GEO_KEY))[GEO_KEY] || null;
+        sendResponse({ settings, seed, profile, presets: presetList(), geo });
+        break;
+      }
+      case 'refreshGeo': {
+        const geo = await getGeo(true);
+        await rebuild();
+        sendResponse({ ok: true, geo });
         break;
       }
       case 'setSettings': {

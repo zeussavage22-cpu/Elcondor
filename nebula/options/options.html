@@ -76,6 +76,15 @@
         </select>
       </div>
       <div class="field">
+        <label>Zona horaria</label>
+        <select id="timezoneSource">
+          <option value="ip">Según mi IP (coincide con tu geolocalización — recomendado)</option>
+          <option value="region">Región aleatoria</option>
+        </select>
+        <p class="hint">«Según mi IP» ajusta la zona a la geolocalización de tu IP actual (o la de tu VPN/proxy) para que <b>concuerde con lo que ven los sitios</b> y no salten alertas antifraude. Hace una consulta a un servicio de geo-IP solo cuando está activo. <span id="geoStatus"></span></p>
+        <button class="btn ghost" id="refreshGeo">↻ Actualizar ubicación</button>
+      </div>
+      <div class="field">
         <label>Precisión del reloj (ms)</label>
         <select id="timingPrecisionMs">
           <option value="0.001">0.001 (apenas afecta)</option>

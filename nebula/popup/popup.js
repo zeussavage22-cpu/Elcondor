@@ -66,6 +66,11 @@ function render() {
   // Device picker is always available; choosing one switches to "blend".
   $('pool').value = s.randomPool || 'desktop';
   $('region').value = s.timezoneRegion || 'americas';
+  $('timezoneSource').value = s.timezoneSource || 'ip';
+  const geo = STATE.geo;
+  $('geoStatus').textContent = (s.timezoneSource === 'ip')
+    ? (geo && geo.timezone ? 'IP detectada: ' + geo.timezone : 'Detectando ubicación…')
+    : '';
   const isRandom = s.mode === 'per-session' || s.mode === 'per-site';
   $('poolRow').hidden = !isRandom;
   $('regionRow').hidden = !isRandom;
@@ -137,6 +142,11 @@ $('pool').addEventListener('change', async (e) => {
 });
 $('region').addEventListener('change', async (e) => {
   await send('setSettings', { patch: { timezoneRegion: e.target.value } });
+  await load();
+});
+$('timezoneSource').addEventListener('change', async (e) => {
+  await send('setSettings', { patch: { timezoneSource: e.target.value } });
+  if (e.target.value === 'ip') { $('geoStatus').textContent = 'Detectando ubicación…'; await send('refreshGeo'); }
   await load();
 });
 $('regen').addEventListener('click', async () => {

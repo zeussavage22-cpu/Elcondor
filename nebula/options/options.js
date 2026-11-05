@@ -25,7 +25,18 @@ function render() {
   $('mode').value = s.mode;
   $('noise').value = s.noise;
   $('noiseStrategy').value = s.noiseStrategy || 'per-read';
+  $('timezoneSource').value = s.timezoneSource || 'ip';
   $('webrtcMode').value = s.webrtcMode;
+
+  const geo = STATE.geo;
+  const gs = $('geoStatus');
+  if (s.timezoneSource === 'ip') {
+    gs.textContent = geo && geo.timezone
+      ? `Detectado: ${geo.timezone}${geo.country ? ' (' + geo.country + ')' : ''}${geo.fallback ? ' — vía navegador' : ''}.`
+      : 'Detectando…';
+  } else {
+    gs.textContent = '';
+  }
   $('timingPrecisionMs').value = String(s.timingPrecisionMs);
 
   const presetSel = $('preset');
@@ -79,6 +90,13 @@ $('mode').addEventListener('change', (e) => { save({ mode: e.target.value }).the
 $('preset').addEventListener('change', (e) => { save({ mode: 'blend', preset: e.target.value }).then(load); });
 $('pool').addEventListener('change', (e) => { save({ randomPool: e.target.value }).then(load); });
 $('region').addEventListener('change', (e) => { save({ timezoneRegion: e.target.value }).then(load); });
+$('timezoneSource').addEventListener('change', (e) => { save({ timezoneSource: e.target.value }).then(load); });
+$('refreshGeo').addEventListener('click', async () => {
+  $('geoStatus').textContent = 'Detectando…';
+  await send('refreshGeo');
+  await load();
+  flash('Ubicación actualizada ✓');
+});
 $('noise').addEventListener('change', (e) => save({ noise: e.target.value }));
 $('noiseStrategy').addEventListener('change', (e) => save({ noiseStrategy: e.target.value }));
 $('webrtcMode').addEventListener('change', (e) => save({ webrtcMode: e.target.value }));

@@ -93,8 +93,15 @@ un `CustomEvent` a `protect.js` (mundo principal), que ya tenía los hooks insta
 
 ## 🔒 Privacidad
 
-Nébula **no** hace ninguna petición de red, **no** tiene analítica y **no** envía tus datos a ningún
-sitio. Todo ocurre localmente en tu navegador. Puedes auditar cada línea.
+Nébula **no** tiene analítica, **no** rastrea nada y **no** envía tus datos a ningún sitio. Todo
+ocurre localmente en tu navegador y puedes auditar cada línea.
+
+**Única excepción — "Zona horaria según mi IP":** si activas esta opción (lo está por defecto), la
+extensión consulta un servicio de geo-IP (ipapi.co, con respaldo ipwho.is / worldtimeapi.org) para
+saber la zona horaria de tu IP y hacer que **coincida** con lo que geolocalizan los sitios (evita que
+tu zona JS contradiga tu IP, algo que los sistemas antifraude detectan). Esa consulta solo envía lo
+normal de cualquier petición (tu IP, que el servicio ya ve) y se cachea 1 hora. Si prefieres cero
+peticiones de red, cambia «Zona horaria» a **«Región aleatoria»** y Nébula no contactará con nadie.
 
 ## ⚠️ Limitaciones honestas
 

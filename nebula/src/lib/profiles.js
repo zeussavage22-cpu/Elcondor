@@ -15,6 +15,12 @@ export const DEFAULT_SETTINGS = {
   // which device families the random modes draw from:
   //   'desktop' -> win | mac | linux   'mobile' -> android | ios   'all' -> every family
   randomPool: 'desktop',
+  // timezone source:
+  //   'ip'     -> match the geolocation of the current IP (real or VPN/proxy exit),
+  //               so sites that cross-check timezone vs IP see no mismatch (makes
+  //               one network request to a geo-IP service when on)
+  //   'region' -> use the random/preset timezone from the chosen region (no network)
+  timezoneSource: 'ip',
   // which region the random modes draw timezone+locale from: 'americas' | 'europe' | 'any'
   timezoneRegion: 'americas',
   noise: 'medium', // low | medium | high — intensity of canvas/audio/webgl noise
