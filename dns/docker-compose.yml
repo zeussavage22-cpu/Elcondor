@@ -1,0 +1,36 @@
+# DNS privado: AdGuard Home (bloqueo + DoH/DoT + control de acceso)
+#              -> Unbound (resolver recursivo propio, DNSSEC, caché agresiva)
+services:
+  unbound:
+    build: ./unbound
+    container_name: unbound
+    restart: unless-stopped
+    networks:
+      dnsnet:
+        ipv4_address: 172.28.0.53
+
+  adguard:
+    image: adguard/adguardhome:v0.107.52
+    container_name: adguard
+    restart: unless-stopped
+    depends_on:
+      - unbound
+    ports:
+      # El puerto 53 clásico NO se expone a Internet (evita abusos y espionaje).
+      # Solo DNS cifrado:
+      - "853:853/tcp"     # DNS-over-TLS  (Android "DNS privado", iOS perfil)
+      - "443:443/tcp"     # DNS-over-HTTPS (navegadores, Windows 11, iOS)
+      - "127.0.0.1:3000:3000/tcp"   # panel; accede por túnel SSH
+    volumes:
+      - ./adguard/work:/opt/adguardhome/work
+      - ./adguard/conf:/opt/adguardhome/conf
+      - /etc/letsencrypt:/etc/letsencrypt:ro   # certificados TLS
+    networks:
+      dnsnet:
+        ipv4_address: 172.28.0.2
+
+networks:
+  dnsnet:
+    ipam:
+      config:
+        - subnet: 172.28.0.0/24
