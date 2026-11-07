@@ -116,7 +116,8 @@ const AI_HELP = {
   pollinations: { key: 'No necesita API key. Es un servicio público y gratuito (tercero); se le envía solo el dominio y tu User-Agent. Puede saturarse (1 consulta cada ~30s).', model: 'Por defecto <code>openai</code>. Déjalo vacío.' },
   gemini: { key: 'Key GRATIS en <b>aistudio.google.com/app/apikey</b> (sin tarjeta).', model: 'Por defecto <code>gemini-3.8-flash</code> (gratis). Si falla, prueba <code>gemini-flash-latest</code>.' },
   groq: { key: 'Key GRATIS en <b>console.groq.com/keys</b>.', model: 'Por defecto <code>llama-3.3-70b-versatile</code> (gratis).' },
-  openrouter: { key: 'Key en <b>openrouter.ai/keys</b> (hay modelos gratis).', model: 'Por defecto <code>meta-llama/llama-3.3-70b-instruct:free</code> (gratis).' },
+  openrouter: { key: 'Key en <b>openrouter.ai/keys</b>. Para <b>DeepSeek GRATIS</b> pon abajo el modelo <code>deepseek/deepseek-chat-v3-0324:free</code>.', model: 'Por defecto <code>meta-llama/llama-3.3-70b-instruct:free</code>. DeepSeek gratis: <code>deepseek/deepseek-chat-v3-0324:free</code>.' },
+  deepseek: { key: 'Key en <b>platform.deepseek.com/api_keys</b> (de pago, muy barato; a veces dan crédito gratis al registrarte). ¿Gratis total? Usa OpenRouter con un modelo <code>deepseek/...:free</code>.', model: 'Por defecto <code>deepseek-chat</code> (V3). Razonador: <code>deepseek-reasoner</code> (R1).' },
   anthropic: { key: 'Key de pago en <b>console.anthropic.com/settings/keys</b> (requiere saldo).', model: 'Por defecto <code>claude-opus-5-5</code>. Más barato: <code>claude-haiku-5-5</code>.' },
   openai: { key: 'Key de pago en <b>platform.openai.com/api-keys</b> (requiere saldo).', model: 'Por defecto <code>gpt-4o-mini</code>.' }
 };

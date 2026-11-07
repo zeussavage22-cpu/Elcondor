@@ -446,6 +446,7 @@ async function aiSuggest(host) {
     openai: { url: 'https://api.openai.com/v1/chat/completions', model: 'gpt-4o-mini' },
     groq: { url: 'https://api.groq.com/openai/v1/chat/completions', model: 'llama-3.3-70b-versatile' },
     openrouter: { url: 'https://openrouter.ai/api/v1/chat/completions', model: 'meta-llama/llama-3.3-70b-instruct:free' },
+    deepseek: { url: 'https://api.deepseek.com/chat/completions', model: 'deepseek-chat' },
     pollinations: { url: 'https://text.pollinations.ai/openai', model: 'openai', noKey: true }
   };
 
