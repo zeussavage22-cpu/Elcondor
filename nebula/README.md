@@ -15,6 +15,17 @@ entre sitios.
 
 ---
 
+## 🧩 Funciones Pro (v2.0)
+
+- **📊 Panel de pantalla completa** con gráficas: rastreadores bloqueados (hoy / 7 días / histórico),
+  top rastreadores, cobertura de protección e identidad activa. Estadísticas **persistentes y reales**.
+- **🧠 Validador de coherencia**: avisa en el popup si el perfil contradice tu dispositivo real
+  (ej. iPhone sobre Android) y lo arregla con un botón.
+- **📇 Perfiles guardados**: guarda configuraciones con nombre y cámbialas con un clic.
+- **🧹 Limpiador de URLs** (`utm_*`, `fbclid`, `gclid`…) y **ocultar Referer** entre sitios (DNR).
+- **⌨️ Atajos**: nueva identidad (Ctrl+Shift+Y) y **modo pánico** (Ctrl+Shift+0: desactiva + limpia).
+- **🎨 Temas** de color (6 acentos).
+
 ## 🎨 Interfaz
 
 Popup con diseño **Bento Dashboard** (oscuro, moderno): tarjeta del sitio, **estadísticas en

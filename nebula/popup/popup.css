@@ -70,6 +70,8 @@ h1 { font-size: 20px; font-weight: 800; letter-spacing: -.3px; }
 .verify-result.warn { color: var(--warn); }
 .ai-box { margin-top: 10px; padding: 10px; background: rgba(255,255,255,.04); border-radius: 12px; }
 .ai-box p { font-size: 12px; margin-bottom: 8px; line-height: 1.4; white-space: pre-line; }
+.coherence { margin-top: 10px; padding: 10px; background: rgba(245, 196, 81, .1); border: 1px solid rgba(245,196,81,.3); border-radius: 12px; }
+.coherence p { font-size: 12px; margin-bottom: 8px; line-height: 1.4; color: var(--warn); }
 
 /* identity */
 .id-lines { display: flex; flex-direction: column; gap: 5px; margin-top: 2px; }

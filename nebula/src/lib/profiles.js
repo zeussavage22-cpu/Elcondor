@@ -57,7 +57,9 @@ export const DEFAULT_SETTINGS = {
     trackers: true, // block known analytics/ad trackers (network layer)
     sensors: true, // block Gamepad / WebUSB / Serial / HID / Bluetooth / keyboard-layout
     webgpu: true, // hide navigator.gpu (WebGPU fingerprinting)
-    dnt: true // Do Not Track + Global Privacy Control signal and headers
+    dnt: true, // Do Not Track + Global Privacy Control signal and headers
+    urlClean: true, // strip tracking params (utm_*, fbclid, gclid, ...) from URLs
+    referer: true // strip the Referer header on cross-site (third-party) requests
   },
   webrtcMode: 'safe', // safe (hide local IP) | relay (relay only) | disabled | off
   timingPrecisionMs: 0.1, // rounding applied to performance.now / Date.now
@@ -68,7 +70,11 @@ export const DEFAULT_SETTINGS = {
   ai: { enabled: false, provider: 'pollinations', apiKey: '', model: '' },
   // sites where Nébula does nothing (e.g. your bank). eTLD+1 or full hostnames.
   allowlist: [],
-  customProfile: null // filled from a preset the first time the user edits it
+  customProfile: null, // filled from a preset the first time the user edits it
+  // accent color for the UI
+  theme: 'purple', // purple | teal | blue | pink | orange | green
+  // named identities the user can save and switch between
+  savedProfiles: [] // [{ id, name, config: { mode, preset, randomPool, timezoneRegion, protections } }]
 };
 
 // ---- Presets ---------------------------------------------------------------

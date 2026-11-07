@@ -7,8 +7,19 @@ const PROTECTION_LABELS = {
   battery: 'Batería', mediaDevices: 'Dispositivos', plugins: 'Plugins', speech: 'Voces',
   timing: 'Precisión reloj', uaData: 'Client Hints', connection: 'Red',
   webdriver: 'WebDriver', toStringMask: 'Anti-detección', headers: 'Cabeceras HTTP',
-  trackers: 'Bloquear rastreadores', sensors: 'Sensores/USB/HID', webgpu: 'WebGPU', dnt: 'No rastrear (DNT/GPC)'
+  trackers: 'Bloquear rastreadores', sensors: 'Sensores/USB/HID', webgpu: 'WebGPU', dnt: 'No rastrear (DNT/GPC)',
+  urlClean: 'Limpiar URLs', referer: 'Ocultar Referer'
 };
+
+const THEMES = {
+  purple: ['#7b7bff', '#39d8c8'], teal: ['#1fd6c4', '#4db8ff'], blue: ['#4d7cff', '#39d8c8'],
+  pink: ['#ff5cc8', '#9b6bff'], orange: ['#ff9f43', '#ff6b6b'], green: ['#2ee676', '#39d8c8']
+};
+function applyTheme(t) {
+  const c = THEMES[t] || THEMES.purple;
+  document.documentElement.style.setProperty('--accent', c[0]);
+  document.documentElement.style.setProperty('--accent2', c[1]);
+}
 
 const $ = (id) => document.getElementById(id);
 let STATE = null;
@@ -78,6 +89,10 @@ function render() {
   $('ai_model').value = ai.model || '';
   updateAIHelp();
 
+  $('theme').value = s.theme || 'purple';
+  applyTheme(s.theme);
+  renderProfiles(s);
+
   const cd = s.cleanData || { cookies: true, storage: true, cache: true };
   $('clean_cookies').checked = !!cd.cookies;
   $('clean_storage').checked = !!cd.storage;
@@ -105,12 +120,51 @@ $('preset').addEventListener('change', (e) => { save({ preset: e.target.value })
 $('pool').addEventListener('change', (e) => { save({ randomPool: e.target.value }).then(load); });
 $('region').addEventListener('change', (e) => { save({ timezoneRegion: e.target.value }).then(load); });
 $('timezoneSource').addEventListener('change', (e) => { save({ timezoneSource: e.target.value }).then(load); });
+const MODE_NAME = { 'per-session': 'Aleatorio/sesión', 'per-site': 'Aleatorio/sitio', blend: 'Mimetizar', custom: 'Personalizado' };
+function renderProfiles(s) {
+  const list = $('profList');
+  list.innerHTML = '';
+  const profs = s.savedProfiles || [];
+  if (!profs.length) { list.innerHTML = '<p class="hint">Aún no hay perfiles guardados.</p>'; return; }
+  profs.forEach((pr) => {
+    const item = document.createElement('div');
+    item.className = 'prof-item';
+    const dev = pr.config.mode === 'blend' ? (pr.config.preset || '') : (MODE_NAME[pr.config.mode] || pr.config.mode);
+    item.innerHTML = `<div><div class="pname">${escapeHtml(pr.name)}</div><div class="pmeta">${escapeHtml(dev)}</div></div>
+      <div class="pacts"><button class="apply">Aplicar</button><button class="del">✕</button></div>`;
+    item.querySelector('.apply').addEventListener('click', async () => { await save(pr.config); flash('Perfil «' + pr.name + '» aplicado ✓'); load(); });
+    item.querySelector('.del').addEventListener('click', async () => {
+      const next = (STATE.settings.savedProfiles || []).filter((x) => x.id !== pr.id);
+      await save({ savedProfiles: next }); load();
+    });
+    list.appendChild(item);
+  });
+}
+function escapeHtml(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+
 function saveClean() {
   save({ cleanData: { cookies: $('clean_cookies').checked, storage: $('clean_storage').checked, cache: $('clean_cache').checked } });
 }
 $('clean_cookies').addEventListener('change', saveClean);
 $('clean_storage').addEventListener('change', saveClean);
 $('clean_cache').addEventListener('change', saveClean);
+
+$('theme').addEventListener('change', (e) => { applyTheme(e.target.value); save({ theme: e.target.value }); });
+$('openDash2').addEventListener('click', () => chrome.tabs.create({ url: chrome.runtime.getURL('dashboard/dashboard.html') }));
+$('profSave').addEventListener('click', async () => {
+  const name = $('profName').value.trim();
+  if (!name) { flash('Escribe un nombre'); return; }
+  const s = STATE.settings;
+  const config = {
+    mode: s.mode, preset: s.preset, randomPool: s.randomPool, timezoneRegion: s.timezoneRegion,
+    timezoneSource: s.timezoneSource, customProfile: s.customProfile, protections: { ...s.protections }
+  };
+  const prof = { id: 'p' + Date.now().toString(36), name, config };
+  await save({ savedProfiles: [...(s.savedProfiles || []), prof] });
+  $('profName').value = '';
+  await load();
+  flash('Perfil guardado ✓');
+});
 
 const AI_HELP = {
   pollinations: { key: 'No necesita API key. Es un servicio público y gratuito (tercero); se le envía solo el dominio y tu User-Agent. Puede saturarse (1 consulta cada ~30s).', model: 'Por defecto <code>openai</code>. Déjalo vacío.' },

@@ -15,6 +15,19 @@ const GEO_KEY = 'nebula:geo';
 const GEO_TTL_MS = 60 * 60 * 1000; // re-check the IP's timezone at most hourly
 const DNR_RULE_BASE = 1000;
 const TRACKER_RULE_ID = 2000;
+const URLCLEAN_RULE_ID = 3000;
+const REFERER_RULE_ID = 3001;
+const STATS_KEY = 'nebula:stats';
+
+// Tracking query parameters stripped from URLs (exact names; the match regex is
+// built from this same list so removal always changes the URL — no redirect loop).
+const TRACKING_PARAMS = [
+  'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'utm_id', 'utm_name',
+  'utm_cid', 'utm_reader', 'utm_social', 'utm_brand', 'utm_source_platform',
+  'gclid', 'gclsrc', 'dclid', 'fbclid', 'msclkid', 'mc_eid', 'mc_cid', 'igshid', 'twclid',
+  'yclid', 'mkt_tok', '_openstat', 'wickedid', 'vero_id', 'oly_anon_id', 'oly_enc_id',
+  'hsa_cam', 'hsa_grp', 'hsa_ad', 'hsa_src', 'hsa_tgt', 'hsa_kw', 'hsa_mt', 'hsa_net', 'hsa_ver'
+];
 
 // Curated list of common analytics / advertising / session-replay trackers.
 const TRACKER_DOMAINS = [
@@ -44,14 +57,52 @@ function hostIsTracker(host) {
 
 // Live per-tab counter of tracker requests seen (real stat for the popup).
 const tabTrackers = Object.create(null);
+// Pending persistent-stats buffer (flushed to storage periodically / on demand).
+let statsPending = 0;
+const statsTopPending = Object.create(null);
+
+function regDomain(host) {
+  const parts = host.split('.');
+  return parts.length <= 2 ? host : parts.slice(-2).join('.');
+}
+function todayKey() { return new Date().toISOString().slice(0, 10); }
+
+async function flushStats() {
+  if (statsPending === 0) return;
+  const n = statsPending; statsPending = 0;
+  const top = statsTopPending; for (const k in statsTopPending) delete statsTopPending[k];
+  const cur = (await chrome.storage.local.get(STATS_KEY))[STATS_KEY] || { total: 0, days: {}, top: {} };
+  cur.total = (cur.total || 0) + n;
+  const day = todayKey();
+  cur.days[day] = (cur.days[day] || 0) + n;
+  // keep only the last 30 days
+  const keys = Object.keys(cur.days).sort();
+  while (keys.length > 30) delete cur.days[keys.shift()];
+  for (const d in top) cur.top[d] = (cur.top[d] || 0) + top[d];
+  // keep only the top 40 domains
+  const entries = Object.entries(cur.top).sort((a, b) => b[1] - a[1]).slice(0, 40);
+  cur.top = Object.fromEntries(entries);
+  await chrome.storage.local.set({ [STATS_KEY]: cur });
+}
 
 try {
   chrome.webRequest.onBeforeRequest.addListener((d) => {
     if (d.tabId < 0) return;
     let host;
     try { host = new URL(d.url).hostname; } catch { return; }
-    if (hostIsTracker(host)) tabTrackers[d.tabId] = (tabTrackers[d.tabId] || 0) + 1;
+    if (hostIsTracker(host)) {
+      tabTrackers[d.tabId] = (tabTrackers[d.tabId] || 0) + 1;
+      statsPending++;
+      const rd = regDomain(host);
+      statsTopPending[rd] = (statsTopPending[rd] || 0) + 1;
+      if (statsPending >= 10) flushStats();
+    }
   }, { urls: ['<all_urls>'] });
+} catch {}
+
+try {
+  chrome.alarms.create('nebula-flush', { periodInMinutes: 1 });
+  chrome.alarms.onAlarm.addListener((a) => { if (a.name === 'nebula-flush') flushStats(); });
 } catch {}
 
 try {
@@ -180,14 +231,35 @@ function buildFullVersionList(brands, fullVersion) {
 }
 
 async function updateHeaderRules(settings, profile) {
-  // Remove all of our rules first (header rules + tracker block rule).
+  // We own every dynamic rule in this extension — remove them all, then re-add.
   const existing = await chrome.declarativeNetRequest.getDynamicRules();
-  const removeRuleIds = existing
-    .filter((r) => (r.id >= DNR_RULE_BASE && r.id < DNR_RULE_BASE + 100) || r.id === TRACKER_RULE_ID)
-    .map((r) => r.id);
+  const removeRuleIds = existing.map((r) => r.id);
 
   const addRules = [];
   const excluded = normalizeDomains(settings.allowlist);
+
+  // --- URL tracking-param cleaner ------------------------------------------
+  if (settings.enabled && settings.protections.urlClean) {
+    const regex = '[?&](' + TRACKING_PARAMS.join('|') + ')=';
+    const cond = { regexFilter: regex, resourceTypes: ['main_frame', 'sub_frame'] };
+    if (excluded.length) cond.excludedRequestDomains = excluded;
+    addRules.push({
+      id: URLCLEAN_RULE_ID, priority: 3,
+      action: { type: 'redirect', redirect: { transform: { queryTransform: { removeParams: TRACKING_PARAMS } } } },
+      condition: cond
+    });
+  }
+
+  // --- Referer stripping on third-party requests ----------------------------
+  if (settings.enabled && settings.protections.referer) {
+    const cond = { domainType: 'thirdParty', resourceTypes: ['main_frame', 'sub_frame', 'xmlhttprequest', 'script', 'image', 'media', 'font', 'stylesheet', 'other'] };
+    if (excluded.length) cond.excludedInitiatorDomains = excluded;
+    addRules.push({
+      id: REFERER_RULE_ID, priority: 1,
+      action: { type: 'modifyHeaders', requestHeaders: [{ header: 'referer', operation: 'remove' }] },
+      condition: cond
+    });
+  }
 
   // --- tracker blocking -----------------------------------------------------
   if (settings.enabled && settings.protections.trackers) {
@@ -352,6 +424,19 @@ chrome.runtime.onStartup.addListener(async () => {
   if (settings.timezoneSource === 'ip') { await getGeo(true); await rebuild(); }
 });
 
+// Keyboard shortcuts.
+try {
+  chrome.commands.onCommand.addListener(async (cmd) => {
+    if (cmd === 'new-identity') {
+      await regenerateSeed();
+    } else if (cmd === 'panic') {
+      await setSettings({ enabled: false });
+      const settings = await getSettings();
+      await clearBrowsingState(settings.cleanData);
+    }
+  });
+} catch {}
+
 // Make sure config exists whenever the worker wakes.
 rebuild().catch(() => {});
 
@@ -421,6 +506,22 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       case 'getStats': {
         const settings = await getSettings();
         sendResponse({ ok: true, trackers: tabTrackers[msg.tabId] || 0, blocking: !!settings.protections.trackers });
+        break;
+      }
+      case 'getStatsFull': {
+        await flushStats();
+        const settings = await getSettings();
+        const seed = await getSeed();
+        const profile = resolveProfile(settings, seed);
+        const stats = (await chrome.storage.local.get(STATS_KEY))[STATS_KEY] || { total: 0, days: {}, top: {} };
+        sendResponse({ ok: true, stats, settings, profile });
+        break;
+      }
+      case 'panic': {
+        await setSettings({ enabled: false });
+        const settings = await getSettings();
+        const cleared = await clearBrowsingState(settings.cleanData);
+        sendResponse({ ok: true, cleared });
         break;
       }
       default:

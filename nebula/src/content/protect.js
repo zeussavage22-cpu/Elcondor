@@ -695,6 +695,22 @@
   })();
 
   // ====================================================================== //
+  //  performance.memory (JS heap-size fingerprinting)                      //
+  // ====================================================================== //
+  (function perfMemory() {
+    try {
+      if (!window.performance || !('memory' in performance)) return;
+      const real = performance.memory;
+      const fake = { jsHeapSizeLimit: 2172649472, totalJSHeapSize: 35000000, usedJSHeapSize: 28000000 };
+      defineGetter(performance, 'memory', function () { return on('hardware') ? fake : real; });
+      const PP = window.Performance && Performance.prototype;
+      if (PP && Object.getOwnPropertyDescriptor(PP, 'memory')) {
+        defineGetter(PP, 'memory', function () { return on('hardware') ? fake : real; });
+      }
+    } catch {}
+  })();
+
+  // ====================================================================== //
   //  Do Not Track / Global Privacy Control                                 //
   // ====================================================================== //
   (function dnt() {

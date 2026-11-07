@@ -18,6 +18,32 @@
     </header>
 
     <section class="panel">
+      <h2>Apariencia</h2>
+      <div class="field">
+        <label>Color de acento</label>
+        <select id="theme">
+          <option value="purple">Morado / Turquesa</option>
+          <option value="teal">Turquesa / Azul</option>
+          <option value="blue">Azul / Turquesa</option>
+          <option value="pink">Rosa / Morado</option>
+          <option value="orange">Naranja / Rojo</option>
+          <option value="green">Verde / Turquesa</option>
+        </select>
+      </div>
+      <p class="hint"><button class="btn ghost" id="openDash2" style="margin:0">📊 Abrir panel de estadísticas</button></p>
+    </section>
+
+    <section class="panel">
+      <h2>Perfiles guardados</h2>
+      <p class="hint">Guarda tu configuración actual (modo, dispositivo, región, protecciones) como una identidad con nombre y cámbiala con un clic.</p>
+      <div class="field" style="display:flex;gap:8px;align-items:center">
+        <input type="text" id="profName" placeholder="Nombre (ej. Trabajo, Compras, CO-Android)" />
+        <button class="btn" id="profSave" style="white-space:nowrap">Guardar actual</button>
+      </div>
+      <div id="profList" class="prof-list"></div>
+    </section>
+
+    <section class="panel">
       <h2>General</h2>
       <div class="field">
         <label>Modo de identidad</label>

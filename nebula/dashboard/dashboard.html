@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="dashboard.css" />
+  <title>Nébula · Panel</title>
+</head>
+<body>
+  <div class="wrap">
+    <header class="hdr">
+      <div class="brand">
+        <span class="logo">◓</span>
+        <div>
+          <h1>Nébula · Panel</h1>
+          <p class="tag">Privacidad en tiempo real</p>
+        </div>
+      </div>
+      <button class="link" id="refresh">↻ Actualizar</button>
+    </header>
+
+    <!-- KPI row -->
+    <div class="grid3">
+      <section class="tile kpi"><span class="lbl">Hoy</span><span class="big accent" id="kToday">0</span><span class="sublbl">rastreadores bloqueados</span></section>
+      <section class="tile kpi"><span class="lbl">Esta semana</span><span class="big" id="kWeek">0</span><span class="sublbl">últimos 7 días</span></section>
+      <section class="tile kpi"><span class="lbl">Histórico</span><span class="big accent2" id="kTotal">0</span><span class="sublbl">desde la instalación</span></section>
+    </div>
+
+    <!-- chart -->
+    <section class="tile">
+      <span class="lbl">Rastreadores bloqueados · últimos 7 días</span>
+      <div id="chart" class="chart"></div>
+    </section>
+
+    <div class="grid2">
+      <!-- top trackers -->
+      <section class="tile">
+        <span class="lbl">Top rastreadores bloqueados</span>
+        <div id="topList" class="toplist"></div>
+      </section>
+
+      <!-- coverage + identity -->
+      <section class="tile">
+        <span class="lbl">Protección</span>
+        <div class="cov"><span class="big" id="covNum">0/0</span><span class="sublbl">protecciones activas</span></div>
+        <div class="cov-bar"><div id="covFill"></div></div>
+        <div class="idblock" id="idblock"></div>
+      </section>
+    </div>
+
+    <footer class="ftr">
+      <span>Nébula · código abierto · MIT</span>
+      <span id="status"></span>
+    </footer>
+  </div>
+  <script src="dashboard.js"></script>
+</body>
+</html>

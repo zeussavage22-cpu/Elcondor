@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Nébula — Anti-Fingerprint Shield",
-  "version": "1.9.0",
+  "version": "2.0.0",
   "description": "Protección de privacidad avanzada contra el fingerprinting del navegador. Código abierto. Canvas, WebGL, audio, fuentes, User-Agent, zona horaria, WebRTC y más.",
   "icons": {
     "16": "icons/16.png",
@@ -17,7 +17,8 @@
     "activeTab",
     "webNavigation",
     "browsingData",
-    "webRequest"
+    "webRequest",
+    "alarms"
   ],
   "host_permissions": ["<all_urls>"],
   "background": {
@@ -65,6 +66,14 @@
   "commands": {
     "_execute_action": {
       "suggested_key": { "default": "Ctrl+Shift+N", "mac": "Command+Shift+N" }
+    },
+    "new-identity": {
+      "suggested_key": { "default": "Ctrl+Shift+Y", "mac": "Command+Shift+Y" },
+      "description": "Generar nueva identidad"
+    },
+    "panic": {
+      "suggested_key": { "default": "Ctrl+Shift+0", "mac": "Command+Shift+0" },
+      "description": "Modo pánico: desactivar y limpiar"
     }
   }
 }

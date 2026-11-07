@@ -27,6 +27,14 @@ select, textarea, input[type="text"], input[type="password"] {
 textarea { font-family: ui-monospace, "SF Mono", Menlo, monospace; resize: vertical; }
 select { cursor: pointer; }
 
+.prof-list { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+.prof-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: var(--panel2); border-radius: 10px; padding: 10px 12px; }
+.prof-item .pname { font-weight: 600; }
+.prof-item .pmeta { font-size: 11px; color: var(--muted); }
+.prof-item .pacts { display: flex; gap: 6px; }
+.prof-item button { font-size: 12px; padding: 6px 12px; border-radius: 8px; border: none; cursor: pointer; font-family: inherit; }
+.prof-item .apply { background: var(--accent); color: #fff; }
+.prof-item .del { background: transparent; color: var(--danger); border: 1px solid #343659; }
 .toggles { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; }
 .tog { display: flex; align-items: center; gap: 8px; background: var(--panel2); border-radius: 8px; padding: 10px 12px; cursor: pointer; }
 .tog input { accent-color: var(--accent); width: 16px; height: 16px; }

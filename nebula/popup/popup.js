@@ -25,8 +25,43 @@ const PROTECTION_LABELS = {
   trackers: 'Bloquear rastreadores',
   sensors: 'Sensores/USB/HID',
   webgpu: 'WebGPU',
-  dnt: 'No rastrear (DNT/GPC)'
+  dnt: 'No rastrear (DNT/GPC)',
+  urlClean: 'Limpiar URLs',
+  referer: 'Ocultar Referer'
 };
+
+const THEMES = {
+  purple: ['#7b7bff', '#39d8c8'], teal: ['#1fd6c4', '#4db8ff'], blue: ['#4d7cff', '#39d8c8'],
+  pink: ['#ff5cc8', '#9b6bff'], orange: ['#ff9f43', '#ff6b6b'], green: ['#2ee676', '#39d8c8']
+};
+function applyTheme(t) {
+  const c = THEMES[t] || THEMES.purple;
+  document.documentElement.style.setProperty('--accent', c[0]);
+  document.documentElement.style.setProperty('--accent2', c[1]);
+}
+
+// Detect the user's REAL device family from the popup's own navigator (not spoofed).
+function realFamily() {
+  const ua = navigator.userAgent;
+  const gecko = /Firefox\//.test(ua);
+  if (/Android/.test(ua)) return { os: 'android', engine: gecko ? 'gecko' : 'blink' };
+  if (/iPhone|iPad|iPod/.test(ua)) return { os: 'ios', engine: 'webkit' };
+  if (/Windows/.test(ua)) return { os: 'windows', engine: gecko ? 'gecko' : 'blink' };
+  if (/Macintosh|Mac OS/.test(ua)) return { os: 'mac', engine: gecko ? 'gecko' : /Version\/[\d.]+.*Safari/.test(ua) && !/Chrome/.test(ua) ? 'webkit' : 'blink' };
+  if (/Linux/.test(ua)) return { os: 'linux', engine: gecko ? 'gecko' : 'blink' };
+  return { os: 'unknown', engine: 'blink' };
+}
+function profileOS(p) {
+  const ua = p.userAgent || '';
+  if (/Android/.test(ua)) return 'android';
+  if (/iPhone|iPad/.test(ua)) return 'ios';
+  if (/Windows/.test(ua)) return 'windows';
+  if (/Mac OS/.test(ua)) return 'mac';
+  if (/Linux/.test(ua)) return 'linux';
+  return 'unknown';
+}
+// Best coherent preset for a real OS family.
+const OS_PRESET = { windows: 'win-chrome', mac: 'mac-chrome', linux: 'linux-chrome', android: 'android-samsung', ios: 'ios-safari' };
 
 const $ = (id) => document.getElementById(id);
 let STATE = null;
@@ -104,6 +139,20 @@ function render() {
   $('fpStatus').style.color = active ? '' : 'var(--muted2)';
   $('fpSub').textContent = active ? 'rota ✓' : 'sin proteger';
   document.body.classList.toggle('disabled', !active);
+
+  applyTheme(s.theme);
+
+  // coherence validator: warn if the spoofed OS contradicts the real device
+  const OS_NAME = { windows: 'Windows', mac: 'Mac', linux: 'Linux', android: 'Android', ios: 'iPhone/iPad' };
+  const coh = $('coherence');
+  const real = realFamily();
+  const pOS = profileOS(p);
+  if (active && real.os !== 'unknown' && pOS !== 'unknown' && real.os !== pOS) {
+    $('cohMsg').textContent = `⚠️ Tu dispositivo real es ${OS_NAME[real.os]} pero el perfil simula ${OS_NAME[pOS]}. Esta contradicción te delata (capas de red/motor no se pueden falsear).`;
+    coh.hidden = false;
+  } else {
+    coh.hidden = true;
+  }
 
   // AI advisor button visibility
   $('aiSuggest').hidden = !(s.ai && s.ai.enabled);
@@ -239,6 +288,17 @@ $('siteAllow').addEventListener('change', async (e) => {
   await load();
 });
 $('openOptions').addEventListener('click', () => chrome.runtime.openOptionsPage());
+$('openDash').addEventListener('click', () => chrome.tabs.create({ url: chrome.runtime.getURL('dashboard/dashboard.html') }));
+$('cohFix').addEventListener('click', async () => {
+  const preset = OS_PRESET[realFamily().os];
+  if (!preset) return;
+  await send('setSettings', { patch: { mode: 'blend', preset } });
+  await load();
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (tab && /^https?:/.test(tab.url || '')) chrome.tabs.reload(tab.id);
+  } catch {}
+});
 
 let lastSuggestion = null;
 $('aiSuggest').addEventListener('click', async () => {
