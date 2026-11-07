@@ -73,9 +73,10 @@ function render() {
 
   const ai = s.ai || {};
   $('ai_enabled').checked = !!ai.enabled;
-  $('ai_provider').value = ai.provider || 'anthropic';
+  $('ai_provider').value = ai.provider || 'gemini';
   $('ai_apiKey').value = ai.apiKey || '';
   $('ai_model').value = ai.model || '';
+  updateAIHelp();
 
   const cd = s.cleanData || { cookies: true, storage: true, cache: true };
   $('clean_cookies').checked = !!cd.cookies;
@@ -111,6 +112,20 @@ $('clean_cookies').addEventListener('change', saveClean);
 $('clean_storage').addEventListener('change', saveClean);
 $('clean_cache').addEventListener('change', saveClean);
 
+const AI_HELP = {
+  gemini: { key: 'Key GRATIS en <b>aistudio.google.com/app/apikey</b> (sin tarjeta).', model: 'Por defecto <code>gemini-2.0-flash</code> (gratis). Alternativa: <code>gemini-1.5-flash</code>.' },
+  groq: { key: 'Key GRATIS en <b>console.groq.com/keys</b>.', model: 'Por defecto <code>llama-3.3-70b-versatile</code> (gratis).' },
+  openrouter: { key: 'Key en <b>openrouter.ai/keys</b> (hay modelos gratis).', model: 'Por defecto <code>meta-llama/llama-3.3-70b-instruct:free</code> (gratis).' },
+  anthropic: { key: 'Key de pago en <b>console.anthropic.com/settings/keys</b> (requiere saldo).', model: 'Por defecto <code>claude-opus-5-5</code>. Más barato: <code>claude-haiku-5-5</code>.' },
+  openai: { key: 'Key de pago en <b>platform.openai.com/api-keys</b> (requiere saldo).', model: 'Por defecto <code>gpt-4o-mini</code>.' }
+};
+function updateAIHelp() {
+  const p = $('ai_provider').value;
+  const h = AI_HELP[p] || AI_HELP.gemini;
+  $('ai_keyhelp').innerHTML = h.key;
+  $('ai_modelhelp').innerHTML = h.model;
+}
+
 function saveAI() {
   save({ ai: {
     enabled: $('ai_enabled').checked,
@@ -120,7 +135,7 @@ function saveAI() {
   } });
 }
 $('ai_enabled').addEventListener('change', saveAI);
-$('ai_provider').addEventListener('change', saveAI);
+$('ai_provider').addEventListener('change', () => { updateAIHelp(); saveAI(); });
 let aiKeyT;
 $('ai_apiKey').addEventListener('input', () => { clearTimeout(aiKeyT); aiKeyT = setTimeout(saveAI, 500); });
 let aiModelT;

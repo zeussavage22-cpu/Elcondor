@@ -132,19 +132,23 @@
       <div class="field">
         <label>Proveedor</label>
         <select id="ai_provider">
-          <option value="anthropic">Anthropic (Claude)</option>
-          <option value="openai">OpenAI (ChatGPT)</option>
+          <option value="gemini">Google Gemini — GRATIS ✅</option>
+          <option value="groq">Groq — GRATIS ✅</option>
+          <option value="openrouter">OpenRouter — modelos gratis ✅</option>
+          <option value="anthropic">Anthropic (Claude) — de pago</option>
+          <option value="openai">OpenAI (ChatGPT) — de pago</option>
         </select>
+        <p class="hint" id="ai_keyhelp"></p>
       </div>
       <div class="field">
         <label>API key</label>
-        <input type="password" id="ai_apiKey" placeholder="sk-..." autocomplete="off" />
-        <p class="hint">Se guarda solo en tu dispositivo (storage local). No se comparte con nadie más que el proveedor que elijas al consultar.</p>
+        <input type="password" id="ai_apiKey" placeholder="pega tu key aquí" autocomplete="off" />
+        <p class="hint">Se guarda solo en tu dispositivo (storage local). Solo se usa para consultar al proveedor que elijas.</p>
       </div>
       <div class="field">
         <label>Modelo (opcional)</label>
-        <input type="text" id="ai_model" placeholder="Claude: claude-opus-5-5 · OpenAI: gpt-4o-mini" />
-        <p class="hint">Déjalo vacío para usar el modelo por defecto. Para gastar menos puedes usar un modelo más barato (p. ej. <code>claude-haiku-5-5</code> o <code>gpt-4o-mini</code>).</p>
+        <input type="text" id="ai_model" placeholder="vacío = modelo por defecto" />
+        <p class="hint" id="ai_modelhelp">Déjalo vacío para el modelo por defecto del proveedor.</p>
       </div>
     </section>
 

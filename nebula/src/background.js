@@ -439,14 +439,40 @@ async function aiSuggest(host) {
   const realUA = (typeof navigator !== 'undefined' && navigator.userAgent) || 'desconocido';
   const userMsg = `Sitio: ${host || 'desconocido'}\nNavegador real del usuario: ${realUA}`;
 
+  // OpenAI-compatible providers (same request/response shape, different endpoint).
+  const OPENAI_COMPAT = {
+    openai: { url: 'https://api.openai.com/v1/chat/completions', model: 'gpt-4o-mini' },
+    groq: { url: 'https://api.groq.com/openai/v1/chat/completions', model: 'llama-3.3-70b-versatile' },
+    openrouter: { url: 'https://openrouter.ai/api/v1/chat/completions', model: 'meta-llama/llama-3.3-70b-instruct:free' }
+  };
+
   try {
     let text = '';
-    if (ai.provider === 'openai') {
-      const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    if (ai.provider === 'gemini') {
+      const model = ai.model || 'gemini-2.0-flash';
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(ai.apiKey)}`;
+      const res = await fetch(url, {
         method: 'POST',
-        headers: { 'content-type': 'application/json', authorization: 'Bearer ' + ai.apiKey },
+        headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
-          model: ai.model || 'gpt-4o-mini',
+          system_instruction: { parts: [{ text: system }] },
+          contents: [{ role: 'user', parts: [{ text: userMsg }] }],
+          generationConfig: { maxOutputTokens: 500, temperature: 0.2 }
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error((data.error && data.error.message) || ('HTTP ' + res.status));
+      const parts = data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts;
+      text = (parts || []).map((p) => p.text || '').join('');
+    } else if (OPENAI_COMPAT[ai.provider]) {
+      const cfg = OPENAI_COMPAT[ai.provider];
+      const headers = { 'content-type': 'application/json', authorization: 'Bearer ' + ai.apiKey };
+      if (ai.provider === 'openrouter') headers['x-title'] = 'Nebula Anti-Fingerprint';
+      const res = await fetch(cfg.url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          model: ai.model || cfg.model,
           max_tokens: 500,
           messages: [{ role: 'system', content: system }, { role: 'user', content: userMsg }]
         })

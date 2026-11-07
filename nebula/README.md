@@ -112,8 +112,10 @@ peticiones de red, cambia «Zona horaria» a **«Región aleatoria»** y Nébula
 
 ## 🤖 Asistente con IA (opcional, apagado por defecto)
 
-Nébula puede sugerirte el mejor perfil para cada sitio usando **tu propia API key** (Anthropic/Claude
-u OpenAI/ChatGPT). Lo activas en *Ajustes → Asistente con IA* y lo usas con el botón **🤖 Sugerir
+Nébula puede sugerirte el mejor perfil para cada sitio usando **tu propia API key**. Soporta
+proveedores **gratuitos** — **Google Gemini** (`aistudio.google.com/app/apikey`), **Groq**
+(`console.groq.com/keys`) y **OpenRouter** (modelos `:free`) — además de **Anthropic/Claude** y
+**OpenAI/ChatGPT** de pago. Lo activas en *Ajustes → Asistente con IA* y lo usas con el botón **🤖 Sugerir
 perfil** del popup. Recomienda: *lista blanca* (bancos/login), *dispositivo coherente* (nunca uno que
 contradiga tu SO real) o *mantener*. **Solo asesora sobre privacidad y coherencia; nunca sobre evadir
 antifraude.** Al consultar, envía únicamente el **dominio del sitio** y el **User-Agent real** al
