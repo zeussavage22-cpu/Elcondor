@@ -235,6 +235,9 @@ $('timezoneSource').addEventListener('change', async (e) => {
 $('regen').addEventListener('click', async () => {
   await send('regenerateSeed');
   await load();
+  const vr = $('verifyResult');
+  vr.className = 'verify-result ok';
+  vr.textContent = '✓ Nueva identidad generada (no borra cookies). Recarga la pestaña para aplicarla.';
 });
 let npArmed = false;
 let npTimer = null;
@@ -254,11 +257,8 @@ async function doNewProfile() {
   btn.disabled = false;
   const vr = $('verifyResult');
   vr.className = 'verify-result ok';
-  vr.textContent = '✨ Perfil nuevo creado' + (res && res.cleared ? ' + datos limpiados.' : '.') + ' Recargando…';
-  try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (tab && /^https?:/.test(tab.url || '')) chrome.tabs.reload(tab.id);
-  } catch {}
+  // Don't auto-reload (that closed the popup and looked like nothing happened).
+  vr.textContent = '✨ Identidad nueva creada' + (res && res.cleared ? ' y cookies/datos limpiados' : '') + '. Recarga la pestaña para aplicarla.';
 }
 
 $('newProfile').addEventListener('click', async () => {
