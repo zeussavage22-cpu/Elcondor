@@ -132,15 +132,16 @@
       <div class="field">
         <label>Proveedor</label>
         <select id="ai_provider">
-          <option value="gemini">Google Gemini — GRATIS ✅</option>
-          <option value="groq">Groq — GRATIS ✅</option>
-          <option value="openrouter">OpenRouter — modelos gratis ✅</option>
+          <option value="pollinations">Pollinations — GRATIS, SIN KEY ✅✅</option>
+          <option value="gemini">Google Gemini — GRATIS (con key) ✅</option>
+          <option value="groq">Groq — GRATIS (con key) ✅</option>
+          <option value="openrouter">OpenRouter — modelos gratis (con key) ✅</option>
           <option value="anthropic">Anthropic (Claude) — de pago</option>
           <option value="openai">OpenAI (ChatGPT) — de pago</option>
         </select>
         <p class="hint" id="ai_keyhelp"></p>
       </div>
-      <div class="field">
+      <div class="field" id="ai_keyfield">
         <label>API key</label>
         <input type="password" id="ai_apiKey" placeholder="pega tu key aquí" autocomplete="off" />
         <p class="hint">Se guarda solo en tu dispositivo (storage local). Solo se usa para consultar al proveedor que elijas.</p>

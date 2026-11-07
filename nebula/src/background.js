@@ -432,7 +432,8 @@ async function aiSuggest(host) {
   const settings = await getSettings();
   const ai = settings.ai || {};
   if (!ai.enabled) return { ok: false, error: 'El asistente IA está desactivado.' };
-  if (!ai.apiKey) return { ok: false, error: 'Falta la API key en Ajustes.' };
+  const needsKey = ai.provider !== 'pollinations';
+  if (needsKey && !ai.apiKey) return { ok: false, error: 'Falta la API key en Ajustes.' };
 
   const presets = presetList();
   const system = aiSystemPrompt(presets);
@@ -440,70 +441,79 @@ async function aiSuggest(host) {
   const userMsg = `Sitio: ${host || 'desconocido'}\nNavegador real del usuario: ${realUA}`;
 
   // OpenAI-compatible providers (same request/response shape, different endpoint).
+  // 'pollinations' needs NO API key (free public endpoint).
   const OPENAI_COMPAT = {
     openai: { url: 'https://api.openai.com/v1/chat/completions', model: 'gpt-4o-mini' },
     groq: { url: 'https://api.groq.com/openai/v1/chat/completions', model: 'llama-3.3-70b-versatile' },
-    openrouter: { url: 'https://openrouter.ai/api/v1/chat/completions', model: 'meta-llama/llama-3.3-70b-instruct:free' }
+    openrouter: { url: 'https://openrouter.ai/api/v1/chat/completions', model: 'meta-llama/llama-3.3-70b-instruct:free' },
+    pollinations: { url: 'https://text.pollinations.ai/openai', model: 'openai', noKey: true }
   };
 
-  try {
-    let text = '';
+  async function callOnce() {
+    let res, data, text = '';
     if (ai.provider === 'gemini') {
       const model = ai.model || 'gemini-3.8-flash';
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(ai.apiKey)}`;
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
+      res = await fetch(url, {
+        method: 'POST', headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           system_instruction: { parts: [{ text: system }] },
           contents: [{ role: 'user', parts: [{ text: userMsg }] }],
           generationConfig: { maxOutputTokens: 500, temperature: 0.2 }
         })
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error((data.error && data.error.message) || ('HTTP ' + res.status));
+      data = await res.json().catch(() => ({}));
+      if (!res.ok) { const e = new Error((data.error && data.error.message) || ('HTTP ' + res.status)); e.status = res.status; throw e; }
       const parts = data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts;
       text = (parts || []).map((p) => p.text || '').join('');
     } else if (OPENAI_COMPAT[ai.provider]) {
       const cfg = OPENAI_COMPAT[ai.provider];
-      const headers = { 'content-type': 'application/json', authorization: 'Bearer ' + ai.apiKey };
+      const headers = { 'content-type': 'application/json' };
+      if (!cfg.noKey) headers.authorization = 'Bearer ' + ai.apiKey;
       if (ai.provider === 'openrouter') headers['x-title'] = 'Nebula Anti-Fingerprint';
-      const res = await fetch(cfg.url, {
-        method: 'POST',
-        headers,
+      res = await fetch(cfg.url, {
+        method: 'POST', headers,
         body: JSON.stringify({
           model: ai.model || cfg.model,
           max_tokens: 500,
           messages: [{ role: 'system', content: system }, { role: 'user', content: userMsg }]
         })
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error((data.error && data.error.message) || ('HTTP ' + res.status));
-      text = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '';
+      const raw = await res.text();
+      try { data = JSON.parse(raw); } catch { data = null; }
+      if (!res.ok) { const e = new Error((data && data.error && data.error.message) || raw.slice(0, 160) || ('HTTP ' + res.status)); e.status = res.status; throw e; }
+      // OpenAI shape, or (pollinations fallback) plain text.
+      text = (data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || (data ? '' : raw);
     } else {
-      const res = await fetch('https://api.anthropic.com/v1/messages', {
+      res = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          'x-api-key': ai.apiKey,
-          'anthropic-version': '2023-06-01',
-          'anthropic-dangerous-direct-browser-access': 'true'
-        },
-        body: JSON.stringify({
-          model: ai.model || 'claude-opus-5-5',
-          max_tokens: 1024,
-          system,
-          messages: [{ role: 'user', content: userMsg }]
-        })
+        headers: { 'content-type': 'application/json', 'x-api-key': ai.apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+        body: JSON.stringify({ model: ai.model || 'claude-opus-5-5', max_tokens: 1024, system, messages: [{ role: 'user', content: userMsg }] })
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error((data.error && data.error.message) || ('HTTP ' + res.status));
+      data = await res.json().catch(() => ({}));
+      if (!res.ok) { const e = new Error((data.error && data.error.message) || ('HTTP ' + res.status)); e.status = res.status; throw e; }
       text = (data.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('');
     }
-    const suggestion = parseSuggestion(text);
-    if (!suggestion) return { ok: false, error: 'La IA no devolvió una sugerencia válida.' };
-    return { ok: true, suggestion };
-  } catch (e) {
-    return { ok: false, error: String((e && e.message) || e) };
+    return text;
   }
+
+  function isTransient(e) {
+    const s = e && e.status;
+    if ([429, 500, 502, 503, 529].includes(s)) return true;
+    return /high demand|overload|try again|temporarily|unavailable|rate.?limit/i.test(String((e && e.message) || ''));
+  }
+
+  let text = '', lastErr = null;
+  for (let i = 0; i < 3; i++) {
+    try { text = await callOnce(); lastErr = null; break; }
+    catch (e) { lastErr = e; if (i === 2 || !isTransient(e)) break; await new Promise((r) => setTimeout(r, 1200 * (i + 1))); }
+  }
+  if (lastErr) {
+    let msg = String((lastErr && lastErr.message) || lastErr);
+    if (isTransient(lastErr)) msg = 'El servidor de IA está saturado ahora mismo. Intenta de nuevo en un momento. (' + msg + ')';
+    return { ok: false, error: msg };
+  }
+  const suggestion = parseSuggestion(text);
+  if (!suggestion) return { ok: false, error: 'La IA no devolvió una sugerencia válida.' };
+  return { ok: true, suggestion };
 }
