@@ -14,12 +14,34 @@ const SEED_KEY = 'nebula:sessionSeed';
 const GEO_KEY = 'nebula:geo';
 const GEO_TTL_MS = 60 * 60 * 1000; // re-check the IP's timezone at most hourly
 const DNR_RULE_BASE = 1000;
+const TRACKER_RULE_ID = 2000;
+
+// Curated list of common analytics / advertising / session-replay trackers.
+const TRACKER_DOMAINS = [
+  'google-analytics.com', 'analytics.google.com', 'googletagmanager.com', 'googleadservices.com',
+  'doubleclick.net', 'googlesyndication.com', 'adservice.google.com', 'pagead2.googlesyndication.com',
+  'connect.facebook.net', 'graph.facebook.com', 'scorecardresearch.com',
+  'quantserve.com', 'quantcount.com', 'adnxs.com', 'criteo.com', 'criteo.net', 'rubiconproject.com',
+  'pubmatic.com', 'openx.net', 'taboola.com', 'outbrain.com', 'hotjar.com', 'static.hotjar.com',
+  'mixpanel.com', 'api.mixpanel.com', 'segment.com', 'cdn.segment.com', 'amplitude.com',
+  'api.amplitude.com', 'fullstory.com', 'mouseflow.com', 'clarity.ms', 'bat.bing.com',
+  'ads.linkedin.com', 'px.ads.linkedin.com', 'analytics.twitter.com', 'ads-twitter.com',
+  'snap.licdn.com', 'cdn.branch.io', 'app.link', 'bugsnag.com', 'nr-data.net', 'newrelic.com',
+  'sentry.io', 'matomo.cloud', 'plausible.io', 'chartbeat.com', 'crazyegg.com', 'optimizely.com',
+  'mc.yandex.ru', 'adroll.com', 'bluekai.com', 'demdex.net', 'omtrdc.net',
+  'everesttech.net', 'moatads.com', 'adsrvr.org', 'casalemedia.com', 'sharethrough.com'
+];
 
 // ---- settings --------------------------------------------------------------
 
 async function getSettings() {
   const got = await chrome.storage.local.get(SETTINGS_KEY);
-  return { ...DEFAULT_SETTINGS, ...(got[SETTINGS_KEY] || {}) };
+  const stored = got[SETTINGS_KEY] || {};
+  const merged = { ...DEFAULT_SETTINGS, ...stored };
+  // Deep-merge nested objects so new keys (e.g. added protections) default on.
+  merged.protections = { ...DEFAULT_SETTINGS.protections, ...(stored.protections || {}) };
+  merged.cleanData = { ...DEFAULT_SETTINGS.cleanData, ...(stored.cleanData || {}) };
+  return merged;
 }
 
 async function setSettings(patch) {
@@ -123,35 +145,51 @@ function buildFullVersionList(brands, fullVersion) {
 }
 
 async function updateHeaderRules(settings, profile) {
-  // Remove our rules first.
+  // Remove all of our rules first (header rules + tracker block rule).
   const existing = await chrome.declarativeNetRequest.getDynamicRules();
-  const removeRuleIds = existing.filter((r) => r.id >= DNR_RULE_BASE && r.id < DNR_RULE_BASE + 100).map((r) => r.id);
+  const removeRuleIds = existing
+    .filter((r) => (r.id >= DNR_RULE_BASE && r.id < DNR_RULE_BASE + 100) || r.id === TRACKER_RULE_ID)
+    .map((r) => r.id);
 
   const addRules = [];
-  if (settings.enabled && settings.protections.headers) {
+  const excluded = normalizeDomains(settings.allowlist);
+
+  // --- tracker blocking -----------------------------------------------------
+  if (settings.enabled && settings.protections.trackers) {
+    const cond = { requestDomains: TRACKER_DOMAINS, resourceTypes: ['main_frame', 'sub_frame', 'xmlhttprequest', 'script', 'image', 'ping', 'media', 'websocket', 'other'] };
+    if (excluded.length) cond.excludedInitiatorDomains = excluded; // don't block on allowlisted sites
+    addRules.push({ id: TRACKER_RULE_ID, priority: 2, action: { type: 'block' }, condition: cond });
+  }
+
+  // --- header rewriting (UA + DNT/GPC) --------------------------------------
+  if (settings.enabled && (settings.protections.headers || settings.protections.dnt)) {
     const ua = profile.uaData || {};
-    const headers = [
-      { header: 'user-agent', operation: 'set', value: profile.userAgent },
-      { header: 'accept-language', operation: 'set', value: `${profile.language},${profile.language.split('-')[0]};q=0.9` }
-    ];
-    if (ua.brands && ua.brands.length) {
-      headers.push({ header: 'sec-ch-ua', operation: 'set', value: buildSecChUa(ua.brands) });
-      headers.push({ header: 'sec-ch-ua-mobile', operation: 'set', value: ua.mobile ? '?1' : '?0' });
-      headers.push({ header: 'sec-ch-ua-platform', operation: 'set', value: `"${ua.platform}"` });
-      // High-entropy client hints: only present them if the server asks, but
-      // rewriting unconditionally keeps them consistent when they are sent.
-      headers.push({ header: 'sec-ch-ua-platform-version', operation: 'set', value: `"${ua.platformVersion || ''}"` });
-      headers.push({ header: 'sec-ch-ua-arch', operation: 'set', value: `"${ua.architecture || ''}"` });
-      headers.push({ header: 'sec-ch-ua-bitness', operation: 'set', value: `"${ua.bitness || ''}"` });
-      headers.push({ header: 'sec-ch-ua-model', operation: 'set', value: `"${ua.model || ''}"` });
-      headers.push({ header: 'sec-ch-ua-full-version', operation: 'set', value: `"${ua.uaFullVersion || ''}"` });
-      headers.push({ header: 'sec-ch-ua-full-version-list', operation: 'set', value: buildFullVersionList(ua.brands, ua.uaFullVersion || '') });
-    } else {
-      // Safari / non-Chromium profiles never send Client Hints — strip them so
-      // the underlying Chromium browser does not betray the disguise.
-      for (const h of ['sec-ch-ua', 'sec-ch-ua-mobile', 'sec-ch-ua-platform', 'sec-ch-ua-platform-version',
-        'sec-ch-ua-arch', 'sec-ch-ua-bitness', 'sec-ch-ua-model', 'sec-ch-ua-full-version', 'sec-ch-ua-full-version-list']) {
-        headers.push({ header: h, operation: 'remove' });
+    const headers = [];
+    if (settings.protections.headers) {
+      headers.push({ header: 'user-agent', operation: 'set', value: profile.userAgent });
+      headers.push({ header: 'accept-language', operation: 'set', value: `${profile.language},${profile.language.split('-')[0]};q=0.9` });
+    }
+    if (settings.protections.dnt) {
+      headers.push({ header: 'dnt', operation: 'set', value: '1' });
+      headers.push({ header: 'sec-gpc', operation: 'set', value: '1' });
+    }
+    if (settings.protections.headers) {
+      if (ua.brands && ua.brands.length) {
+        headers.push({ header: 'sec-ch-ua', operation: 'set', value: buildSecChUa(ua.brands) });
+        headers.push({ header: 'sec-ch-ua-mobile', operation: 'set', value: ua.mobile ? '?1' : '?0' });
+        headers.push({ header: 'sec-ch-ua-platform', operation: 'set', value: `"${ua.platform}"` });
+        headers.push({ header: 'sec-ch-ua-platform-version', operation: 'set', value: `"${ua.platformVersion || ''}"` });
+        headers.push({ header: 'sec-ch-ua-arch', operation: 'set', value: `"${ua.architecture || ''}"` });
+        headers.push({ header: 'sec-ch-ua-bitness', operation: 'set', value: `"${ua.bitness || ''}"` });
+        headers.push({ header: 'sec-ch-ua-model', operation: 'set', value: `"${ua.model || ''}"` });
+        headers.push({ header: 'sec-ch-ua-full-version', operation: 'set', value: `"${ua.uaFullVersion || ''}"` });
+        headers.push({ header: 'sec-ch-ua-full-version-list', operation: 'set', value: buildFullVersionList(ua.brands, ua.uaFullVersion || '') });
+      } else {
+        // Safari / non-Chromium profiles never send Client Hints — strip them.
+        for (const h of ['sec-ch-ua', 'sec-ch-ua-mobile', 'sec-ch-ua-platform', 'sec-ch-ua-platform-version',
+          'sec-ch-ua-arch', 'sec-ch-ua-bitness', 'sec-ch-ua-model', 'sec-ch-ua-full-version', 'sec-ch-ua-full-version-list']) {
+          headers.push({ header: h, operation: 'remove' });
+        }
       }
     }
 
@@ -159,15 +197,16 @@ async function updateHeaderRules(settings, profile) {
       urlFilter: '*',
       resourceTypes: ['main_frame', 'sub_frame', 'xmlhttprequest', 'script', 'image', 'stylesheet', 'font', 'media', 'websocket', 'other']
     };
-    const excluded = normalizeDomains(settings.allowlist);
     if (excluded.length) condition.excludedRequestDomains = excluded;
 
-    addRules.push({
-      id: DNR_RULE_BASE,
-      priority: 1,
-      action: { type: 'modifyHeaders', requestHeaders: headers },
-      condition
-    });
+    if (headers.length) {
+      addRules.push({
+        id: DNR_RULE_BASE,
+        priority: 1,
+        action: { type: 'modifyHeaders', requestHeaders: headers },
+        condition
+      });
+    }
   }
 
   await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds, addRules });

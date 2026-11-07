@@ -53,9 +53,13 @@ export const DEFAULT_SETTINGS = {
     connection: true,
     webdriver: true,
     toStringMask: true,
-    headers: true // rewrite UA / Accept-Language / Sec-CH-UA at the HTTP layer
+    headers: true, // rewrite UA / Accept-Language / Sec-CH-UA at the HTTP layer
+    trackers: true, // block known analytics/ad trackers (network layer)
+    sensors: true, // block Gamepad / WebUSB / Serial / HID / Bluetooth / keyboard-layout
+    webgpu: true, // hide navigator.gpu (WebGPU fingerprinting)
+    dnt: true // Do Not Track + Global Privacy Control signal and headers
   },
-  webrtcMode: 'safe', // safe (hide local IP) | relay (relay only) | off (no change)
+  webrtcMode: 'safe', // safe (hide local IP) | relay (relay only) | disabled | off
   timingPrecisionMs: 0.1, // rounding applied to performance.now / Date.now
   // what "new clean profile" wipes along with generating a fresh identity
   cleanData: { cookies: true, storage: true, cache: true },

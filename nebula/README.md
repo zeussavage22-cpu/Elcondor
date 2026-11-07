@@ -35,6 +35,13 @@ entre sitios.
 | **Plugins** | Expone el set estándar de Chrome (ni vacío ni raro). |
 | **WebDriver** | `navigator.webdriver = false`. |
 | **Precisión de reloj** | Reduce la resolución de `performance.now()` contra el fingerprinting por *timing*. |
+| **Bloqueador de rastreadores** | Bloquea (capa de red, vía DNR) ~55 dominios de analytics/ads/session-replay conocidos (Google Analytics, Doubleclick, Facebook, Hotjar, Segment…). |
+| **Sensores / enumeración** | Oculta `getGamepads`, WebUSB, Web Serial, WebHID, Web Bluetooth y `keyboard.getLayoutMap`. |
+| **WebGPU** | Oculta `navigator.gpu` (nuevo vector de huella por GPU). |
+| **Do Not Track / GPC** | Señal `doNotTrack`/`globalPrivacyControl` + cabeceras `DNT: 1` y `Sec-GPC: 1`. |
+| **Almacenamiento** | `storage.estimate()` devuelve una cuota fija (anti-huella por tamaño de disco). |
+| **Coherencia Safari** | Oculta `window.chrome` en perfiles Safari (que no lo tienen). |
+| **Precisión de reloj** | Reduce la resolución de `performance.now()` contra el fingerprinting por *timing*. |
 | **Anti-detección** | Todas las funciones interceptadas devuelven `[native code]` en `toString()`, con `name`/`length` correctos, para que los sitios no detecten el escudo. |
 
 ## 🧠 Filosofía de diseño

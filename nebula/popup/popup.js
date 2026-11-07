@@ -21,7 +21,11 @@ const PROTECTION_LABELS = {
   connection: 'Red',
   webdriver: 'WebDriver',
   toStringMask: 'Anti-detección',
-  headers: 'Cabeceras HTTP'
+  headers: 'Cabeceras HTTP',
+  trackers: 'Bloquear rastreadores',
+  sensors: 'Sensores/USB/HID',
+  webgpu: 'WebGPU',
+  dnt: 'No rastrear (DNT/GPC)'
 };
 
 const $ = (id) => document.getElementById(id);

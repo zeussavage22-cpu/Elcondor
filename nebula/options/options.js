@@ -6,7 +6,8 @@ const PROTECTION_LABELS = {
   screen: 'Pantalla', timezone: 'Zona horaria', locale: 'Idioma', webrtc: 'WebRTC',
   battery: 'Batería', mediaDevices: 'Dispositivos', plugins: 'Plugins', speech: 'Voces',
   timing: 'Precisión reloj', uaData: 'Client Hints', connection: 'Red',
-  webdriver: 'WebDriver', toStringMask: 'Anti-detección', headers: 'Cabeceras HTTP'
+  webdriver: 'WebDriver', toStringMask: 'Anti-detección', headers: 'Cabeceras HTTP',
+  trackers: 'Bloquear rastreadores', sensors: 'Sensores/USB/HID', webgpu: 'WebGPU', dnt: 'No rastrear (DNT/GPC)'
 };
 
 const $ = (id) => document.getElementById(id);

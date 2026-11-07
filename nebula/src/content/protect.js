@@ -613,6 +613,7 @@
 
     const Patched = function RTCPeerConnection(config, ...rest) {
       const m = mode();
+      if (m === 'disabled') throw new DOMException('WebRTC is disabled by Nébula', 'NotAllowedError');
       if (m === 'relay' && config) config = { ...config, iceTransportPolicy: 'relay' };
       const pc = new RTC(config, ...rest);
       if (m === 'off') return pc;
@@ -644,6 +645,75 @@
     wrap(RTC, Patched, 'RTCPeerConnection');
     try { window.RTCPeerConnection = Patched; } catch {}
     try { if (window.webkitRTCPeerConnection) window.webkitRTCPeerConnection = Patched; } catch {}
+  })();
+
+  // ====================================================================== //
+  //  sensors & device-enumeration APIs                                     //
+  // ====================================================================== //
+  (function sensors() {
+    const NP = window.Navigator && Navigator.prototype;
+    if (!NP) return;
+    if (NP.getGamepads) {
+      const orig = NP.getGamepads;
+      NP.getGamepads = wrap(orig, function getGamepads() { return on('sensors') ? [] : orig.call(this); }, 'getGamepads');
+    }
+    ['usb', 'serial', 'hid', 'bluetooth'].forEach((prop) => {
+      if (prop in navigator) {
+        const real = navigator[prop];
+        defineGetter(NP, prop, function () { return on('sensors') ? undefined : real; });
+      }
+    });
+    if (window.Keyboard && Keyboard.prototype.getLayoutMap) {
+      const orig = Keyboard.prototype.getLayoutMap;
+      Keyboard.prototype.getLayoutMap = wrap(orig, function getLayoutMap() {
+        return on('sensors') ? Promise.resolve(new Map()) : orig.call(this);
+      }, 'getLayoutMap');
+    }
+  })();
+
+  // ====================================================================== //
+  //  WebGPU                                                                //
+  // ====================================================================== //
+  (function webgpu() {
+    const NP = window.Navigator && Navigator.prototype;
+    if (!NP || !('gpu' in navigator)) return;
+    const real = navigator.gpu;
+    defineGetter(NP, 'gpu', function () { return on('webgpu') ? undefined : real; });
+  })();
+
+  // ====================================================================== //
+  //  storage quota (disk-size fingerprinting)                              //
+  // ====================================================================== //
+  (function storageEstimate() {
+    if (window.StorageManager && StorageManager.prototype.estimate) {
+      const orig = StorageManager.prototype.estimate;
+      StorageManager.prototype.estimate = wrap(orig, function estimate() {
+        if (!on('hardware')) return orig.call(this);
+        return Promise.resolve({ quota: 2 * 1024 * 1024 * 1024, usage: 0, usageDetails: {} });
+      }, 'estimate');
+    }
+  })();
+
+  // ====================================================================== //
+  //  Do Not Track / Global Privacy Control                                 //
+  // ====================================================================== //
+  (function dnt() {
+    const NP = window.Navigator && Navigator.prototype;
+    if (!NP) return;
+    const realDNT = navigator.doNotTrack;
+    defineGetter(NP, 'doNotTrack', function () { return on('dnt') ? '1' : realDNT; });
+    const realGPC = navigator.globalPrivacyControl;
+    defineGetter(NP, 'globalPrivacyControl', function () { return on('dnt') ? true : realGPC; });
+  })();
+
+  // ====================================================================== //
+  //  window.chrome coherence (Safari profiles have none)                   //
+  // ====================================================================== //
+  (function windowChrome() {
+    const real = window.chrome;
+    defineGetter(window, 'chrome', function () {
+      return (on('navigator') && CFG.profile && CFG.profile.uaData === null) ? undefined : real;
+    });
   })();
 
   // ====================================================================== //
