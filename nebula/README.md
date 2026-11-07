@@ -15,6 +15,13 @@ entre sitios.
 
 ---
 
+## 🎨 Interfaz
+
+Popup con diseño **Bento Dashboard** (oscuro, moderno): tarjeta del sitio, **estadísticas en
+vivo** (rastreadores bloqueados en la pestaña, estado de la huella), identidad activa, botón de
+perfil nuevo limpio, configuración y rejilla de protecciones. **12 dispositivos** para mimetizar
+(Windows Chrome/Edge, macOS Chrome/Safari, Linux, iPhone/iPad, Android Pixel/Samsung/Xiaomi/OnePlus).
+
 ## ✨ Qué protege
 
 | Categoría | Qué hace |

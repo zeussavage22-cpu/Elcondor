@@ -12,7 +12,7 @@
       <span class="logo">◓</span>
       <div>
         <h1>Nébula</h1>
-        <p class="tag">Anti-Fingerprint Shield</p>
+        <p class="tag">Anti-Fingerprint</p>
       </div>
     </div>
     <label class="switch" title="Activar / desactivar">
@@ -21,87 +21,110 @@
     </label>
   </header>
 
-  <section class="card" id="siteCard">
-    <div class="row">
-      <span class="label">Este sitio</span>
-      <span class="host" id="host">—</span>
+  <!-- Site tile -->
+  <section class="tile site" id="siteCard">
+    <div class="site-row">
+      <div class="site-info">
+        <span class="lbl">Esta página</span>
+        <span class="host" id="host">—</span>
+      </div>
+      <span class="pill" id="sitePill">● Protegido</span>
     </div>
     <label class="checkrow">
       <input type="checkbox" id="siteAllow" />
-      <span>Desactivar Nébula en este sitio (lista blanca)</span>
+      <span>Desactivar aquí (lista blanca)</span>
     </label>
-    <button class="ghost" id="verify">🔍 Verificar en esta página</button>
-    <button class="ghost" id="aiSuggest" hidden>🤖 Sugerir perfil (IA)</button>
+    <div class="site-actions">
+      <button class="chip-btn" id="verify">🔍 Verificar</button>
+      <button class="chip-btn" id="aiSuggest" hidden>🤖 Sugerir perfil</button>
+    </div>
     <p class="verify-result" id="verifyResult"></p>
     <div class="ai-box" id="aiBox" hidden>
       <p id="aiReason"></p>
-      <button class="primary" id="aiApply">Aplicar sugerencia</button>
+      <button class="btn-primary small" id="aiApply">Aplicar sugerencia</button>
     </div>
   </section>
 
-  <section class="card">
-    <div class="row">
-      <span class="label">Modo</span>
+  <!-- Stat tiles -->
+  <div class="grid2">
+    <section class="tile stat">
+      <span class="lbl">Rastreadores</span>
+      <span class="big accent" id="trackersCount">0</span>
+      <span class="sublbl" id="trackersLabel">bloqueados aquí</span>
+    </section>
+    <section class="tile stat">
+      <span class="lbl">Huella</span>
+      <span class="big" id="fpStatus">Única</span>
+      <span class="sublbl" id="fpSub">rota ✓</span>
+    </section>
+  </div>
+
+  <!-- Identity tile -->
+  <section class="tile identity">
+    <span class="lbl">Identidad activa</span>
+    <div class="id-lines">
+      <div class="id-line"><span class="arr">▸</span><span id="idUA">—</span></div>
+      <div class="id-line"><span class="arr">▸</span><span id="idPlatform">—</span></div>
+      <div class="id-line"><span class="arr">▸</span><span id="idScreen">—</span> · <span id="idTZ">—</span></div>
+      <div class="id-line dim"><span class="arr">▸</span><span id="idGPU">—</span></div>
+      <div class="id-line dim"><span class="arr">▸</span><span id="idHW">—</span> · <span id="idLang">—</span></div>
+    </div>
+  </section>
+
+  <button class="btn-primary" id="newProfile">🆕 Crear perfil nuevo y limpio</button>
+  <button class="btn-ghost" id="regen">↻ Generar nueva identidad</button>
+
+  <!-- Config tile -->
+  <section class="tile config">
+    <span class="lbl">Configuración</span>
+    <div class="cfg-row">
+      <span>Modo</span>
       <select id="mode">
         <option value="per-session">Aleatorio por sesión</option>
         <option value="per-site">Aleatorio por sitio</option>
-        <option value="blend">Mimetizar (preset)</option>
+        <option value="blend">Mimetizar (dispositivo)</option>
         <option value="custom">Perfil personalizado</option>
       </select>
     </div>
-    <div class="row" id="poolRow">
-      <span class="label">Aleatorizar entre</span>
+    <div class="cfg-row" id="poolRow">
+      <span>Aleatorizar entre</span>
       <select id="pool">
-        <option value="desktop">Escritorio (Win/Mac/Linux)</option>
-        <option value="mobile">Móvil (Android/iOS)</option>
+        <option value="desktop">Escritorio</option>
+        <option value="mobile">Móvil</option>
         <option value="all">Todos</option>
       </select>
     </div>
-    <div class="row" id="regionRow">
-      <span class="label">Región</span>
+    <div class="cfg-row" id="regionRow">
+      <span>Región</span>
       <select id="region">
         <option value="americas">América</option>
         <option value="europe">Europa</option>
         <option value="any">Cualquiera</option>
       </select>
     </div>
-    <div class="row" id="presetRow">
-      <span class="label">Dispositivo</span>
+    <div class="cfg-row" id="presetRow">
+      <span>Dispositivo</span>
       <select id="preset"></select>
     </div>
-    <p class="hint-sm" id="presetHint">Este es el dispositivo que verán las webs.</p>
-    <div class="row">
-      <span class="label">Zona horaria</span>
+    <p class="hint-sm" id="presetHint">Dispositivo que verán las webs.</p>
+    <div class="cfg-row">
+      <span>Zona horaria</span>
       <select id="timezoneSource">
         <option value="ip">Según mi IP</option>
         <option value="region">Aleatoria</option>
       </select>
     </div>
     <p class="hint-sm" id="geoStatus"></p>
-    <button class="ghost" id="regen">↻ Generar nueva identidad</button>
-    <button class="primary" id="newProfile">🆕 Crear perfil nuevo y limpio</button>
   </section>
 
-  <section class="card identity">
-    <h2>Identidad activa</h2>
-    <dl>
-      <dt>Navegador</dt><dd id="idUA">—</dd>
-      <dt>Plataforma</dt><dd id="idPlatform">—</dd>
-      <dt>Pantalla</dt><dd id="idScreen">—</dd>
-      <dt>Zona horaria</dt><dd id="idTZ">—</dd>
-      <dt>GPU (WebGL)</dt><dd id="idGPU">—</dd>
-      <dt>Núcleos / RAM</dt><dd id="idHW">—</dd>
-      <dt>Idioma</dt><dd id="idLang">—</dd>
-    </dl>
-  </section>
-
-  <section class="card">
-    <h2>Protecciones</h2>
-    <div class="grid" id="toggles"></div>
+  <!-- Protections tile -->
+  <section class="tile">
+    <span class="lbl">Protecciones</span>
+    <div class="chips" id="toggles"></div>
   </section>
 
   <footer class="ftr">
-    <button class="link" id="openOptions">Ajustes avanzados</button>
+    <button class="link" id="openOptions">⚙ Ajustes avanzados</button>
     <a class="link" id="testLink" href="https://coveryourtracks.eff.org/" target="_blank" rel="noopener">Probar huella ↗</a>
   </footer>
 

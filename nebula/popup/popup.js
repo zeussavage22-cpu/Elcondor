@@ -55,7 +55,6 @@ function render() {
   const p = STATE.profile;
 
   $('master').checked = s.enabled;
-  document.body.classList.toggle('disabled', !s.enabled);
   $('mode').value = s.mode;
 
   // presets
@@ -88,14 +87,23 @@ function render() {
   $('idScreen').textContent = `${p.screen.width}×${p.screen.height} @${p.screen.dpr}x · ${p.screen.colorDepth}bit`;
   $('idTZ').textContent = p.timezone;
   $('idGPU').textContent = p.webgl ? p.webgl.renderer.replace(/^ANGLE \(/, '').replace(/\)$/, '') : '—';
-  $('idHW').textContent = `${p.hardwareConcurrency} núcleos · ${p.deviceMemory} GB`;
+  $('idHW').textContent = `${p.hardwareConcurrency} núcleos` + (p.deviceMemory ? ` · ${p.deviceMemory} GB` : '');
   $('idLang').textContent = (p.languages || []).join(', ');
 
-  // site allow
+  // site allow + protection state
   $('host').textContent = currentHost || '—';
-  const base = etld(currentHost);
-  $('siteAllow').checked = !!(currentHost && s.allowlist.some((d) => currentHost === d || currentHost.endsWith('.' + d)));
+  const allowed = !!(currentHost && s.allowlist.some((d) => currentHost === d || currentHost.endsWith('.' + d)));
+  $('siteAllow').checked = allowed;
   $('siteAllow').disabled = !currentHost;
+
+  const active = s.enabled && !allowed;
+  const pill = $('sitePill');
+  pill.textContent = active ? '● Protegido' : '○ Desactivado';
+  pill.classList.toggle('off', !active);
+  $('fpStatus').textContent = active ? 'Única' : 'Expuesta';
+  $('fpStatus').style.color = active ? '' : 'var(--muted2)';
+  $('fpSub').textContent = active ? 'rota ✓' : 'sin proteger';
+  document.body.classList.toggle('disabled', !active);
 
   // AI advisor button visibility
   $('aiSuggest').hidden = !(s.ai && s.ai.enabled);
@@ -120,15 +128,32 @@ function render() {
 }
 
 function shortUA(ua) {
-  const m = ua.match(/Chrome\/(\d+)/);
-  const os = /Windows/.test(ua) ? 'Windows' : /Mac OS/.test(ua) ? 'macOS' : /Android/.test(ua) ? 'Android' : /Linux/.test(ua) ? 'Linux' : '';
-  return `Chrome ${m ? m[1] : '?'} · ${os}`;
+  let br = 'Navegador', ver = '';
+  if (/Edg\//.test(ua)) { br = 'Edge'; ver = (ua.match(/Edg\/(\d+)/) || [])[1] || ''; }
+  else if (/Firefox\//.test(ua)) { br = 'Firefox'; ver = (ua.match(/Firefox\/(\d+)/) || [])[1] || ''; }
+  else if (/Chrome\//.test(ua)) { br = 'Chrome'; ver = (ua.match(/Chrome\/(\d+)/) || [])[1] || ''; }
+  else if (/Version\/[\d.]+.*Safari/.test(ua)) { br = 'Safari'; ver = (ua.match(/Version\/(\d+)/) || [])[1] || ''; }
+  const os = /Windows/.test(ua) ? 'Windows' : /iPhone|iPad/.test(ua) ? 'iOS' : /Mac OS/.test(ua) ? 'macOS' : /Android/.test(ua) ? 'Android' : /Linux/.test(ua) ? 'Linux' : '';
+  return br + (ver ? ' ' + ver : '') + (os ? ' · ' + os : '');
 }
+
+function safeHost(u) { try { return new URL(u).hostname; } catch { return null; } }
 
 async function load() {
   STATE = await send('getState');
-  currentHost = await getActiveHost();
+  let tab = null;
+  try { [tab] = await chrome.tabs.query({ active: true, currentWindow: true }); } catch {}
+  currentHost = (tab && tab.url && /^https?:/.test(tab.url)) ? safeHost(tab.url) : null;
   render();
+  if (tab && tab.id != null) {
+    try {
+      const st = await send('getStats', { tabId: tab.id });
+      if (st && st.ok) {
+        $('trackersCount').textContent = st.trackers;
+        $('trackersLabel').textContent = st.blocking ? 'bloqueados aquí' : 'detectados aquí';
+      }
+    } catch {}
+  }
 }
 
 // ---- events ----

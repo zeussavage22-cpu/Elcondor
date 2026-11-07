@@ -265,6 +265,75 @@ export const PRESETS = {
         { brand: 'Google Chrome', version: '131' }
       ]
     }
+  },
+  'win-edge': {
+    label: 'Windows 11 · Edge',
+    platform: 'Win32', vendor: 'Google Inc.',
+    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 Edg/131.0.0.0',
+    appVersion: '5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 Edg/131.0.0.0',
+    hardwareConcurrency: 8, deviceMemory: 8, maxTouchPoints: 0,
+    language: 'en-US', languages: ['en-US', 'en'],
+    screen: { width: 1920, height: 1080, availWidth: 1920, availHeight: 1032, colorDepth: 24, pixelDepth: 24, dpr: 1 },
+    timezone: 'America/New_York',
+    webgl: { vendor: 'Google Inc. (Intel)', renderer: 'ANGLE (Intel, Intel(R) Iris(R) Xe Graphics Direct3D11 vs_5_0 ps_5_0, D3D11)' },
+    uaData: {
+      mobile: false, platform: 'Windows', platformVersion: '15.0.0', architecture: 'x86', bitness: '64', model: '', uaFullVersion: '131.0.2903.70',
+      brands: [{ brand: 'Chromium', version: '131' }, { brand: 'Not_A Brand', version: '24' }, { brand: 'Microsoft Edge', version: '131' }]
+    }
+  },
+  'mac-safari': {
+    label: 'macOS · Safari',
+    platform: 'MacIntel', vendor: 'Apple Computer, Inc.',
+    userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.6 Safari/605.1.15',
+    appVersion: '5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.6 Safari/605.1.15',
+    hardwareConcurrency: 8, deviceMemory: undefined, maxTouchPoints: 0,
+    language: 'en-US', languages: ['en-US', 'en'],
+    screen: { width: 1512, height: 982, availWidth: 1512, availHeight: 944, colorDepth: 30, pixelDepth: 30, dpr: 2 },
+    timezone: 'America/New_York',
+    webgl: { vendor: 'Apple Inc.', renderer: 'Apple GPU' },
+    uaData: null
+  },
+  'android-xiaomi': {
+    label: 'Android · Xiaomi',
+    platform: 'Linux armv81', vendor: 'Google Inc.',
+    userAgent: 'Mozilla/5.0 (Linux; Android 14; 23049PCD8G) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36',
+    appVersion: '5.0 (Linux; Android 14; 23049PCD8G) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36',
+    hardwareConcurrency: 8, deviceMemory: 8, maxTouchPoints: 5,
+    language: 'en-US', languages: ['en-US', 'en'],
+    screen: { width: 393, height: 873, availWidth: 393, availHeight: 873, colorDepth: 24, pixelDepth: 24, dpr: 2.75 },
+    timezone: 'America/New_York',
+    webgl: { vendor: 'Qualcomm', renderer: 'Adreno (TM) 725' },
+    uaData: {
+      mobile: true, platform: 'Android', platformVersion: '14.0.0', architecture: '', bitness: '', model: '23049PCD8G', uaFullVersion: '131.0.6778.86',
+      brands: [{ brand: 'Chromium', version: '131' }, { brand: 'Not_A Brand', version: '24' }, { brand: 'Google Chrome', version: '131' }]
+    }
+  },
+  'android-oneplus': {
+    label: 'Android · OnePlus',
+    platform: 'Linux armv81', vendor: 'Google Inc.',
+    userAgent: 'Mozilla/5.0 (Linux; Android 14; CPH2581) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36',
+    appVersion: '5.0 (Linux; Android 14; CPH2581) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36',
+    hardwareConcurrency: 8, deviceMemory: 12, maxTouchPoints: 5,
+    language: 'en-US', languages: ['en-US', 'en'],
+    screen: { width: 412, height: 919, availWidth: 412, availHeight: 919, colorDepth: 24, pixelDepth: 24, dpr: 3.5 },
+    timezone: 'America/New_York',
+    webgl: { vendor: 'Qualcomm', renderer: 'Adreno (TM) 750' },
+    uaData: {
+      mobile: true, platform: 'Android', platformVersion: '14.0.0', architecture: '', bitness: '', model: 'CPH2581', uaFullVersion: '131.0.6778.86',
+      brands: [{ brand: 'Chromium', version: '131' }, { brand: 'Not_A Brand', version: '24' }, { brand: 'Google Chrome', version: '131' }]
+    }
+  },
+  'ios-15promax': {
+    label: 'iPhone 15 Pro Max · Safari',
+    platform: 'iPhone', vendor: 'Apple Computer, Inc.',
+    userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.6 Mobile/15E148 Safari/604.1',
+    appVersion: '5.0 (iPhone; CPU iPhone OS 17_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.6 Mobile/15E148 Safari/604.1',
+    hardwareConcurrency: 6, deviceMemory: undefined, maxTouchPoints: 5,
+    language: 'en-US', languages: ['en-US', 'en'],
+    screen: { width: 430, height: 932, availWidth: 430, availHeight: 932, colorDepth: 24, pixelDepth: 24, dpr: 3 },
+    timezone: 'America/New_York',
+    webgl: { vendor: 'Apple Inc.', renderer: 'Apple GPU' },
+    uaData: null
   }
 };
 
@@ -334,12 +403,15 @@ const DEVICE_POOLS = {
     { model: 'Pixel 7', ua: 'Pixel 7', screen: { width: 412, height: 915, dpr: 2.625 }, webgl: { vendor: 'Qualcomm', renderer: 'Adreno (TM) 730' } },
     { model: 'Pixel 8', ua: 'Pixel 8', screen: { width: 412, height: 915, dpr: 2.625 }, webgl: { vendor: 'Qualcomm', renderer: 'Adreno (TM) 735' } },
     { model: 'SM-S918B', ua: 'SM-S918B', screen: { width: 384, height: 824, dpr: 2.8125 }, webgl: { vendor: 'Qualcomm', renderer: 'Adreno (TM) 740' } },
-    { model: 'SM-A536B', ua: 'SM-A536B', screen: { width: 384, height: 854, dpr: 2.8125 }, webgl: { vendor: 'ARM', renderer: 'Mali-G68' } }
+    { model: 'SM-A536B', ua: 'SM-A536B', screen: { width: 384, height: 854, dpr: 2.8125 }, webgl: { vendor: 'ARM', renderer: 'Mali-G68' } },
+    { model: '23049PCD8G', ua: '23049PCD8G', screen: { width: 393, height: 873, dpr: 2.75 }, webgl: { vendor: 'Qualcomm', renderer: 'Adreno (TM) 725' } },
+    { model: 'CPH2581', ua: 'CPH2581', screen: { width: 412, height: 919, dpr: 3.5 }, webgl: { vendor: 'Qualcomm', renderer: 'Adreno (TM) 750' } }
   ],
   ios: [
     { ver: '17_6', version: '17.6', screen: { width: 393, height: 852, dpr: 3 } }, // iPhone 15/14 Pro
     { ver: '17_5_1', version: '17.5.1', screen: { width: 390, height: 844, dpr: 3 } }, // iPhone 13/14
-    { ver: '16_7', version: '16.7', screen: { width: 428, height: 926, dpr: 3 } } // iPhone 13 Pro Max
+    { ver: '16_7', version: '16.7', screen: { width: 428, height: 926, dpr: 3 } }, // iPhone 13 Pro Max
+    { ver: '17_6', version: '17.6', screen: { width: 430, height: 932, dpr: 3 } } // iPhone 15 Pro Max
   ]
 };
 

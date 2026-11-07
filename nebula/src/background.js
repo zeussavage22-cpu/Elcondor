@@ -31,6 +31,38 @@ const TRACKER_DOMAINS = [
   'mc.yandex.ru', 'adroll.com', 'bluekai.com', 'demdex.net', 'omtrdc.net',
   'everesttech.net', 'moatads.com', 'adsrvr.org', 'casalemedia.com', 'sharethrough.com'
 ];
+const TRACKER_SET = new Set(TRACKER_DOMAINS);
+
+function hostIsTracker(host) {
+  if (!host) return false;
+  const parts = host.split('.');
+  for (let i = 0; i < parts.length - 1; i++) {
+    if (TRACKER_SET.has(parts.slice(i).join('.'))) return true;
+  }
+  return false;
+}
+
+// Live per-tab counter of tracker requests seen (real stat for the popup).
+const tabTrackers = Object.create(null);
+
+try {
+  chrome.webRequest.onBeforeRequest.addListener((d) => {
+    if (d.tabId < 0) return;
+    let host;
+    try { host = new URL(d.url).hostname; } catch { return; }
+    if (hostIsTracker(host)) tabTrackers[d.tabId] = (tabTrackers[d.tabId] || 0) + 1;
+  }, { urls: ['<all_urls>'] });
+} catch {}
+
+try {
+  chrome.webNavigation.onCommitted.addListener((d) => {
+    if (d.frameId === 0) tabTrackers[d.tabId] = 0;
+  });
+} catch {}
+
+try {
+  chrome.tabs.onRemoved.addListener((tabId) => { delete tabTrackers[tabId]; });
+} catch {}
 
 // ---- settings --------------------------------------------------------------
 
@@ -384,6 +416,11 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       case 'aiSuggest': {
         const res = await aiSuggest(msg.host);
         sendResponse(res);
+        break;
+      }
+      case 'getStats': {
+        const settings = await getSettings();
+        sendResponse({ ok: true, trackers: tabTrackers[msg.tabId] || 0, blocking: !!settings.protections.trackers });
         break;
       }
       default:
