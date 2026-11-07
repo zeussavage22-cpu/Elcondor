@@ -316,7 +316,23 @@ async function updateHeaderRules(settings, profile) {
     }
   }
 
-  await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds, addRules });
+  // Resilience: the core rules (UA/header spoofing + tracker blocking) must ALWAYS
+  // apply. If a newer rule (urlClean/referer) is rejected on some Chromium build,
+  // fall back to the core set so nothing silently breaks — and never let this
+  // throw up the call chain (which would hang setSettings/rebuild).
+  const coreIds = new Set([DNR_RULE_BASE, TRACKER_RULE_ID]);
+  const coreRules = addRules.filter((r) => coreIds.has(r.id));
+  try {
+    await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds, addRules });
+  } catch (e) {
+    try {
+      await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds, addRules: coreRules });
+      console.warn('Nébula: extra DNR rules rejected, core rules applied.', e && e.message);
+    } catch (e2) {
+      try { await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds, addRules: [] }); } catch {}
+      console.warn('Nébula: DNR update failed.', e2 && e2.message);
+    }
+  }
 }
 
 function normalizeDomains(list) {
@@ -444,6 +460,7 @@ rebuild().catch(() => {});
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   (async () => {
+   try {
     switch (msg && msg.type) {
       case 'getState': {
         const settings = await getSettings();
@@ -527,6 +544,10 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       default:
         sendResponse({ ok: false, error: 'unknown message' });
     }
+   } catch (err) {
+     // Never hang the caller — always respond, even on an unexpected error.
+     try { sendResponse({ ok: false, error: String((err && err.message) || err) }); } catch {}
+   }
   })();
   return true; // async
 });
