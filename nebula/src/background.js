@@ -41,6 +41,7 @@ async function getSettings() {
   // Deep-merge nested objects so new keys (e.g. added protections) default on.
   merged.protections = { ...DEFAULT_SETTINGS.protections, ...(stored.protections || {}) };
   merged.cleanData = { ...DEFAULT_SETTINGS.cleanData, ...(stored.cleanData || {}) };
+  merged.ai = { ...DEFAULT_SETTINGS.ai, ...(stored.ai || {}) };
   return merged;
 }
 
@@ -48,6 +49,8 @@ async function setSettings(patch) {
   const cur = await getSettings();
   const next = { ...cur, ...patch };
   if (patch.protections) next.protections = { ...cur.protections, ...patch.protections };
+  if (patch.cleanData) next.cleanData = { ...cur.cleanData, ...patch.cleanData };
+  if (patch.ai) next.ai = { ...cur.ai, ...patch.ai };
   await chrome.storage.local.set({ [SETTINGS_KEY]: next });
   await rebuild();
   return next;
@@ -378,6 +381,11 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         sendResponse({ ok: true, settings: DEFAULT_SETTINGS });
         break;
       }
+      case 'aiSuggest': {
+        const res = await aiSuggest(msg.host);
+        sendResponse(res);
+        break;
+      }
       default:
         sendResponse({ ok: false, error: 'unknown message' });
     }
@@ -387,4 +395,89 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
 
 function presetList() {
   return Object.entries(PRESETS).map(([id, p]) => ({ id, label: p.label }));
+}
+
+// ---- optional cloud-AI profile advisor -------------------------------------
+
+function aiSystemPrompt(presets) {
+  const list = presets.map((p) => `${p.id} = ${p.label}`).join('; ');
+  return [
+    'Eres el asesor de perfiles de "Nébula", una extensión de privacidad anti-fingerprinting.',
+    'El usuario está en un sitio web y quiere la configuración más PRIVADA y COHERENTE.',
+    'Elige UNA recomendación:',
+    '- "allowlist": desactivar la extensión en este sitio (ideal para bancos, pagos, gobierno, o sitios donde el usuario inicia sesión con su identidad real, o que se rompen al falsear datos).',
+    '- "device": imitar un dispositivo que pase desapercibido Y sea coherente con el sistema/motor REAL del usuario (nunca elijas un SO que contradiga el real; p. ej. no elijas iPhone si el navegador real es Android/Chromium).',
+    '- "keep": mantener la protección aleatoria actual (bien para navegación general).',
+    'Reglas: SOLO ayudas con privacidad y coherencia interna. NO ayudas a evadir el antifraude, la detección de bots ni la verificación de ningún servicio concreto. Si falsear datos en este sitio es inútil o arriesgado, prefiere "allowlist".',
+    `Presets disponibles: ${list}.`,
+    'Responde SOLO con un objeto JSON compacto, sin prosa ni markdown:',
+    '{"action":"allowlist"|"device"|"keep","preset":"<id del preset o null>","reason":"<una frase corta en español>"}'
+  ].join('\n');
+}
+
+function parseSuggestion(text) {
+  if (!text) return null;
+  let t = text.trim().replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();
+  const a = t.indexOf('{');
+  const b = t.lastIndexOf('}');
+  if (a >= 0 && b > a) t = t.slice(a, b + 1);
+  try {
+    const o = JSON.parse(t);
+    if (!o || !['allowlist', 'device', 'keep'].includes(o.action)) return null;
+    return { action: o.action, preset: o.preset || null, reason: String(o.reason || '') };
+  } catch { return null; }
+}
+
+async function aiSuggest(host) {
+  const settings = await getSettings();
+  const ai = settings.ai || {};
+  if (!ai.enabled) return { ok: false, error: 'El asistente IA está desactivado.' };
+  if (!ai.apiKey) return { ok: false, error: 'Falta la API key en Ajustes.' };
+
+  const presets = presetList();
+  const system = aiSystemPrompt(presets);
+  const realUA = (typeof navigator !== 'undefined' && navigator.userAgent) || 'desconocido';
+  const userMsg = `Sitio: ${host || 'desconocido'}\nNavegador real del usuario: ${realUA}`;
+
+  try {
+    let text = '';
+    if (ai.provider === 'openai') {
+      const res = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', authorization: 'Bearer ' + ai.apiKey },
+        body: JSON.stringify({
+          model: ai.model || 'gpt-4o-mini',
+          max_tokens: 500,
+          messages: [{ role: 'system', content: system }, { role: 'user', content: userMsg }]
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error((data.error && data.error.message) || ('HTTP ' + res.status));
+      text = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '';
+    } else {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-api-key': ai.apiKey,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true'
+        },
+        body: JSON.stringify({
+          model: ai.model || 'claude-opus-5-5',
+          max_tokens: 1024,
+          system,
+          messages: [{ role: 'user', content: userMsg }]
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error((data.error && data.error.message) || ('HTTP ' + res.status));
+      text = (data.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('');
+    }
+    const suggestion = parseSuggestion(text);
+    if (!suggestion) return { ok: false, error: 'La IA no devolvió una sugerencia válida.' };
+    return { ok: true, suggestion };
+  } catch (e) {
+    return { ok: false, error: String((e && e.message) || e) };
+  }
 }

@@ -31,7 +31,12 @@
       <span>Desactivar Nébula en este sitio (lista blanca)</span>
     </label>
     <button class="ghost" id="verify">🔍 Verificar en esta página</button>
+    <button class="ghost" id="aiSuggest" hidden>🤖 Sugerir perfil (IA)</button>
     <p class="verify-result" id="verifyResult"></p>
+    <div class="ai-box" id="aiBox" hidden>
+      <p id="aiReason"></p>
+      <button class="primary" id="aiApply">Aplicar sugerencia</button>
+    </div>
   </section>
 
   <section class="card">

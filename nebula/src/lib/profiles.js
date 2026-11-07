@@ -63,6 +63,9 @@ export const DEFAULT_SETTINGS = {
   timingPrecisionMs: 0.1, // rounding applied to performance.now / Date.now
   // what "new clean profile" wipes along with generating a fresh identity
   cleanData: { cookies: true, storage: true, cache: true },
+  // optional cloud-AI advisor (OFF by default; uses the user's own API key and
+  // sends only the site hostname + the real browser UA to the chosen provider).
+  ai: { enabled: false, provider: 'anthropic', apiKey: '', model: '' },
   // sites where Nébula does nothing (e.g. your bank). eTLD+1 or full hostnames.
   allowlist: [],
   customProfile: null // filled from a preset the first time the user edits it

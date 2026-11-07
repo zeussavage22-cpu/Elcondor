@@ -71,6 +71,12 @@ function render() {
     grid.appendChild(lbl);
   });
 
+  const ai = s.ai || {};
+  $('ai_enabled').checked = !!ai.enabled;
+  $('ai_provider').value = ai.provider || 'anthropic';
+  $('ai_apiKey').value = ai.apiKey || '';
+  $('ai_model').value = ai.model || '';
+
   const cd = s.cleanData || { cookies: true, storage: true, cache: true };
   $('clean_cookies').checked = !!cd.cookies;
   $('clean_storage').checked = !!cd.storage;
@@ -104,6 +110,21 @@ function saveClean() {
 $('clean_cookies').addEventListener('change', saveClean);
 $('clean_storage').addEventListener('change', saveClean);
 $('clean_cache').addEventListener('change', saveClean);
+
+function saveAI() {
+  save({ ai: {
+    enabled: $('ai_enabled').checked,
+    provider: $('ai_provider').value,
+    apiKey: $('ai_apiKey').value.trim(),
+    model: $('ai_model').value.trim()
+  } });
+}
+$('ai_enabled').addEventListener('change', saveAI);
+$('ai_provider').addEventListener('change', saveAI);
+let aiKeyT;
+$('ai_apiKey').addEventListener('input', () => { clearTimeout(aiKeyT); aiKeyT = setTimeout(saveAI, 500); });
+let aiModelT;
+$('ai_model').addEventListener('input', () => { clearTimeout(aiModelT); aiModelT = setTimeout(saveAI, 500); });
 $('refreshGeo').addEventListener('click', async () => {
   $('geoStatus').textContent = 'Detectando…';
   await send('refreshGeo');

@@ -58,6 +58,8 @@ select {
 .verify-result.ok { color: var(--accent2); }
 .verify-result.bad { color: var(--danger); }
 .verify-result.warn { color: #f5c451; }
+.ai-box { margin-top: 8px; padding: 10px; background: var(--card2); border-radius: 8px; }
+.ai-box p { font-size: 12px; margin-bottom: 8px; line-height: 1.4; white-space: pre-line; }
 .checkrow { display: flex; align-items: center; gap: 8px; cursor: pointer; color: var(--muted); }
 .checkrow input { accent-color: var(--accent); }
 

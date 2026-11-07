@@ -110,6 +110,16 @@ tu zona JS contradiga tu IP, algo que los sistemas antifraude detectan). Esa con
 normal de cualquier petición (tu IP, que el servicio ya ve) y se cachea 1 hora. Si prefieres cero
 peticiones de red, cambia «Zona horaria» a **«Región aleatoria»** y Nébula no contactará con nadie.
 
+## 🤖 Asistente con IA (opcional, apagado por defecto)
+
+Nébula puede sugerirte el mejor perfil para cada sitio usando **tu propia API key** (Anthropic/Claude
+u OpenAI/ChatGPT). Lo activas en *Ajustes → Asistente con IA* y lo usas con el botón **🤖 Sugerir
+perfil** del popup. Recomienda: *lista blanca* (bancos/login), *dispositivo coherente* (nunca uno que
+contradiga tu SO real) o *mantener*. **Solo asesora sobre privacidad y coherencia; nunca sobre evadir
+antifraude.** Al consultar, envía únicamente el **dominio del sitio** y el **User-Agent real** al
+proveedor que elijas; la key se guarda solo en tu dispositivo. Si no lo activas, no hay ninguna
+consulta de red por este concepto.
+
 ## ⚠️ Limitaciones honestas
 
 - El fingerprinting es una carrera armamentística; ninguna herramienta es perfecta.

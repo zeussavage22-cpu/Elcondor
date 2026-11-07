@@ -97,6 +97,9 @@ function render() {
   $('siteAllow').checked = !!(currentHost && s.allowlist.some((d) => currentHost === d || currentHost.endsWith('.' + d)));
   $('siteAllow').disabled = !currentHost;
 
+  // AI advisor button visibility
+  $('aiSuggest').hidden = !(s.ai && s.ai.enabled);
+
   // toggles
   const grid = $('toggles');
   grid.innerHTML = '';
@@ -211,6 +214,58 @@ $('siteAllow').addEventListener('change', async (e) => {
   await load();
 });
 $('openOptions').addEventListener('click', () => chrome.runtime.openOptionsPage());
+
+let lastSuggestion = null;
+$('aiSuggest').addEventListener('click', async () => {
+  const btn = $('aiSuggest');
+  const box = $('aiBox');
+  box.hidden = true;
+  lastSuggestion = null;
+  btn.disabled = true;
+  const label = btn.textContent;
+  btn.textContent = '🤖 Consultando IA…';
+  const host = currentHost;
+  const res = await send('aiSuggest', { host });
+  btn.disabled = false;
+  btn.textContent = label;
+  const vr = $('verifyResult');
+  if (!res || !res.ok) {
+    vr.className = 'verify-result bad';
+    vr.textContent = '⚠️ ' + ((res && res.error) || 'No se pudo consultar la IA.');
+    return;
+  }
+  vr.textContent = '';
+  lastSuggestion = res.suggestion;
+  const map = { allowlist: 'Añadir a lista blanca (desactivar aquí)', device: 'Usar dispositivo', keep: 'Mantener protección actual' };
+  let txt = '💡 ' + (res.suggestion.reason || '');
+  if (res.suggestion.action === 'device' && res.suggestion.preset) {
+    const p = STATE.presets.find((x) => x.id === res.suggestion.preset);
+    txt += '\n→ ' + (map.device) + ': ' + (p ? p.label : res.suggestion.preset);
+  } else {
+    txt += '\n→ ' + (map[res.suggestion.action] || res.suggestion.action);
+  }
+  $('aiReason').textContent = txt;
+  $('aiBox').hidden = false;
+});
+
+$('aiApply').addEventListener('click', async () => {
+  if (!lastSuggestion) return;
+  const s = lastSuggestion;
+  if (s.action === 'allowlist' && currentHost) {
+    const base = etld(currentHost);
+    const list = STATE.settings.allowlist.slice();
+    if (!list.includes(base)) list.push(base);
+    await send('setSettings', { patch: { allowlist: list } });
+  } else if (s.action === 'device' && s.preset) {
+    await send('setSettings', { patch: { mode: 'blend', preset: s.preset } });
+  }
+  $('aiBox').hidden = true;
+  await load();
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (tab && /^https?:/.test(tab.url || '')) chrome.tabs.reload(tab.id);
+  } catch {}
+});
 
 $('verify').addEventListener('click', async () => {
   const el = $('verifyResult');

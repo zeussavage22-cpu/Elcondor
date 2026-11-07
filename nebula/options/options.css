@@ -20,7 +20,7 @@ header .switch { margin-left: auto; }
 .hint { color: var(--muted); font-size: 12px; margin-top: 4px; }
 .hint code { background: var(--panel2); padding: 1px 5px; border-radius: 4px; }
 
-select, textarea {
+select, textarea, input[type="text"], input[type="password"] {
   width: 100%; background: var(--panel2); color: var(--fg);
   border: 1px solid #343659; border-radius: 8px; padding: 9px 10px; font-size: 13px; font-family: inherit;
 }
