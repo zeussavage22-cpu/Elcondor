@@ -113,7 +113,7 @@ $('clean_storage').addEventListener('change', saveClean);
 $('clean_cache').addEventListener('change', saveClean);
 
 const AI_HELP = {
-  gemini: { key: 'Key GRATIS en <b>aistudio.google.com/app/apikey</b> (sin tarjeta).', model: 'Por defecto <code>gemini-2.0-flash</code> (gratis). Alternativa: <code>gemini-1.5-flash</code>.' },
+  gemini: { key: 'Key GRATIS en <b>aistudio.google.com/app/apikey</b> (sin tarjeta).', model: 'Por defecto <code>gemini-3.8-flash</code> (gratis). Si falla, prueba <code>gemini-flash-latest</code>.' },
   groq: { key: 'Key GRATIS en <b>console.groq.com/keys</b>.', model: 'Por defecto <code>llama-3.3-70b-versatile</code> (gratis).' },
   openrouter: { key: 'Key en <b>openrouter.ai/keys</b> (hay modelos gratis).', model: 'Por defecto <code>meta-llama/llama-3.3-70b-instruct:free</code> (gratis).' },
   anthropic: { key: 'Key de pago en <b>console.anthropic.com/settings/keys</b> (requiere saldo).', model: 'Por defecto <code>claude-opus-5-5</code>. Más barato: <code>claude-haiku-5-5</code>.' },

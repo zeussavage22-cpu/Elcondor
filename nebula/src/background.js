@@ -449,7 +449,7 @@ async function aiSuggest(host) {
   try {
     let text = '';
     if (ai.provider === 'gemini') {
-      const model = ai.model || 'gemini-2.0-flash';
+      const model = ai.model || 'gemini-3.8-flash';
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(ai.apiKey)}`;
       const res = await fetch(url, {
         method: 'POST',
