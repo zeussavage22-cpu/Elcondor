@@ -59,7 +59,8 @@ export const DEFAULT_SETTINGS = {
     webgpu: true, // hide navigator.gpu (WebGPU fingerprinting)
     dnt: true, // Do Not Track + Global Privacy Control signal and headers
     urlClean: true, // strip tracking params (utm_*, fbclid, gclid, ...) from URLs
-    referer: true // strip the Referer header on cross-site (third-party) requests
+    referer: true, // strip the Referer header on cross-site (third-party) requests
+    thirdPartyCookies: true // block third-party cookies (strip Cookie/Set-Cookie cross-site)
   },
   webrtcMode: 'safe', // safe (hide local IP) | relay (relay only) | disabled | off
   timingPrecisionMs: 0.1, // rounding applied to performance.now / Date.now
@@ -74,8 +75,44 @@ export const DEFAULT_SETTINGS = {
   // accent color for the UI
   theme: 'purple', // purple | teal | blue | pink | orange | green
   // named identities the user can save and switch between
-  savedProfiles: [] // [{ id, name, config: { mode, preset, randomPool, timezoneRegion, protections } }]
+  savedProfiles: [], // [{ id, name, config: { mode, preset, randomPool, timezoneRegion, protections } }]
+  // v2.1 extras
+  shieldLevel: 'balanced', // basic | balanced | max (quick protection presets)
+  autoRotateMin: 0, // 0 = off; otherwise minutes between automatic new identities
+  cookieBanners: true, // auto-hide / dismiss cookie-consent banners
+  fpLog: true, // record which sites tried to fingerprint you (shown in the panel)
+  travelCountry: '' // '' = off; else a country code (ES, US, MX, ...) forcing tz+locale
 };
+
+// Travel mode: coherent timezone + locale per country code.
+export const TRAVEL_COUNTRIES = {
+  US: { label: 'Estados Unidos', tz: 'America/New_York', language: 'en-US', languages: ['en-US', 'en'] },
+  MX: { label: 'México', tz: 'America/Mexico_City', language: 'es-MX', languages: ['es-MX', 'es'] },
+  CO: { label: 'Colombia', tz: 'America/Bogota', language: 'es-419', languages: ['es-419', 'es'] },
+  AR: { label: 'Argentina', tz: 'America/Argentina/Buenos_Aires', language: 'es-AR', languages: ['es-AR', 'es'] },
+  BR: { label: 'Brasil', tz: 'America/Sao_Paulo', language: 'pt-BR', languages: ['pt-BR', 'pt'] },
+  ES: { label: 'España', tz: 'Europe/Madrid', language: 'es-ES', languages: ['es-ES', 'es'] },
+  GB: { label: 'Reino Unido', tz: 'Europe/London', language: 'en-GB', languages: ['en-GB', 'en'] },
+  DE: { label: 'Alemania', tz: 'Europe/Berlin', language: 'de-DE', languages: ['de-DE', 'de'] },
+  FR: { label: 'Francia', tz: 'Europe/Paris', language: 'fr-FR', languages: ['fr-FR', 'fr'] }
+};
+
+// Shield-level presets → which protections turn on. Keys not listed stay as-is.
+export const SHIELD_LEVELS = {
+  basic: ['navigator', 'hardware', 'screen', 'timezone', 'locale', 'headers', 'uaData', 'webdriver', 'toStringMask', 'trackers', 'dnt', 'urlClean'],
+  balanced: ['canvas', 'webgl', 'audio', 'fonts', 'clientRects', 'navigator', 'hardware', 'screen', 'timezone', 'locale', 'webrtc', 'plugins', 'timing', 'uaData', 'connection', 'webdriver', 'toStringMask', 'headers', 'trackers', 'dnt', 'urlClean', 'referer', 'thirdPartyCookies'],
+  max: null // null = everything on
+};
+
+export const ALL_PROTECTIONS = Object.keys(DEFAULT_SETTINGS.protections);
+
+// Build a full protections object for a shield level.
+export function protectionsForLevel(level) {
+  const out = {};
+  const list = SHIELD_LEVELS[level];
+  for (const k of ALL_PROTECTIONS) out[k] = list === null ? true : list.includes(k);
+  return out;
+}
 
 // ---- Presets ---------------------------------------------------------------
 // Kept deliberately "boringly common" so blending in actually reduces entropy.

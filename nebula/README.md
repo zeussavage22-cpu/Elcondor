@@ -15,6 +15,18 @@ entre sitios.
 
 ---
 
+## 🆕 v2.1
+
+- **🔢 Badge en el icono** con rastreadores bloqueados en vivo.
+- **🍪 Auto-cerrar avisos de cookies** (oculta y rechaza los banners de consentimiento).
+- **🕵️ Registro de intentos de fingerprinting**: el Panel muestra qué sitios intentaron leer tu
+  canvas/WebGL/audio/fuentes.
+- **🖱️ Menú clic derecho**: nueva identidad, lista blanca este sitio, abrir panel.
+- **🛡️ Niveles de escudo** (Básico / Equilibrado / Máximo) para activar protecciones de golpe.
+- **🔄 Rotación automática** de identidad (cada 15 min – 3 h).
+- **🌍 Modo viaje**: fija zona horaria e idioma de un país (ideal con VPN).
+- **🚫 Bloquear cookies de terceros**.
+
 ## 🧩 Funciones Pro (v2.0)
 
 - **📊 Panel de pantalla completa** con gráficas: rastreadores bloqueados (hoy / 7 días / histórico),

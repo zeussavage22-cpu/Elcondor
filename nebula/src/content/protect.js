@@ -126,6 +126,17 @@
 
   function on(cat) { return CFG.enabled && CFG.protections && CFG.protections[cat]; }
 
+  // Report (once per kind per page) that the site accessed a fingerprinting API.
+  const fpReported = new Set();
+  function reportFp(kind) {
+    try {
+      if (!CFG.enabled || CFG.fpLog === false) return;
+      if (fpReported.has(kind)) return;
+      fpReported.add(kind);
+      window.dispatchEvent(new CustomEvent('nebula:fp', { detail: kind }));
+    } catch {}
+  }
+
   // ====================================================================== //
   //  Canvas 2D                                                             //
   // ====================================================================== //
@@ -155,6 +166,7 @@
     function clamp(v) { return v < 0 ? 0 : v > 255 ? 255 : v; }
 
     C2D.getImageData = wrap(origGetImageData, function getImageData(x, y, w, h, settings) {
+      reportFp('canvas');
       const img = origGetImageData.call(this, x, y, w, h, settings);
       if (on('canvas')) { try { perturb(img.data, img.width, img.height); } catch {} }
       return img;
@@ -173,6 +185,7 @@
     }
 
     HC.toDataURL = wrap(origToDataURL, function toDataURL(type, quality) {
+      reportFp('canvas');
       if (on('canvas') && this.width && this.height) {
         try { return origToDataURL.call(noisyCopy(this), type, quality); } catch {}
       }
@@ -191,6 +204,7 @@
     // measureText jitter (also used for font fingerprinting)
     const origMeasure = C2D.measureText;
     C2D.measureText = wrap(origMeasure, function measureText(text) {
+      reportFp('fonts');
       const m = origMeasure.call(this, text);
       if (!on('fonts')) return m;
       const j = ((hash32(ORIGIN_SEED, strHash(String(text) + '|' + this.font)) & 1023) / 1023 - 0.5) * 0.02;
@@ -216,6 +230,7 @@
     for (const proto of protos) {
       const origGetParameter = proto.getParameter;
       proto.getParameter = wrap(origGetParameter, function getParameter(p) {
+        if (p === UNMASKED_VENDOR || p === UNMASKED_RENDERER) reportFp('webgl');
         if (on('webgl') && CFG.profile && CFG.profile.webgl) {
           if (p === UNMASKED_VENDOR) return CFG.profile.webgl.vendor;
           if (p === UNMASKED_RENDERER) return CFG.profile.webgl.renderer;
@@ -256,6 +271,7 @@
       const AB = AudioBuffer.prototype;
       const origGet = AB.getChannelData;
       AB.getChannelData = wrap(origGet, function getChannelData(ch) {
+        reportFp('audio');
         const data = origGet.call(this, ch);
         if (on('audio')) { try { noiseArr(data, true); } catch {} }
         return data;

@@ -8,7 +8,7 @@ const PROTECTION_LABELS = {
   timing: 'Precisión reloj', uaData: 'Client Hints', connection: 'Red',
   webdriver: 'WebDriver', toStringMask: 'Anti-detección', headers: 'Cabeceras HTTP',
   trackers: 'Bloquear rastreadores', sensors: 'Sensores/USB/HID', webgpu: 'WebGPU', dnt: 'No rastrear (DNT/GPC)',
-  urlClean: 'Limpiar URLs', referer: 'Ocultar Referer'
+  urlClean: 'Limpiar URLs', referer: 'Ocultar Referer', thirdPartyCookies: 'Cookies de terceros'
 };
 
 const THEMES = {
@@ -19,6 +19,19 @@ function applyTheme(t) {
   const c = THEMES[t] || THEMES.purple;
   document.documentElement.style.setProperty('--accent', c[0]);
   document.documentElement.style.setProperty('--accent2', c[1]);
+}
+
+const COUNTRIES = { US: 'Estados Unidos', MX: 'México', CO: 'Colombia', AR: 'Argentina', BR: 'Brasil', ES: 'España', GB: 'Reino Unido', DE: 'Alemania', FR: 'Francia' };
+const SHIELD_LEVELS = {
+  basic: ['navigator', 'hardware', 'screen', 'timezone', 'locale', 'headers', 'uaData', 'webdriver', 'toStringMask', 'trackers', 'dnt', 'urlClean'],
+  balanced: ['canvas', 'webgl', 'audio', 'fonts', 'clientRects', 'navigator', 'hardware', 'screen', 'timezone', 'locale', 'webrtc', 'plugins', 'timing', 'uaData', 'connection', 'webdriver', 'toStringMask', 'headers', 'trackers', 'dnt', 'urlClean', 'referer', 'thirdPartyCookies'],
+  max: null
+};
+function protectionsForLevel(level) {
+  const out = {};
+  const list = SHIELD_LEVELS[level];
+  Object.keys(PROTECTION_LABELS).forEach((k) => { out[k] = list === null ? true : list.includes(k); });
+  return out;
 }
 
 const $ = (id) => document.getElementById(id);
@@ -93,6 +106,19 @@ function render() {
   applyTheme(s.theme);
   renderProfiles(s);
 
+  // v2.1 extras
+  $('shieldLevel').value = s.shieldLevel || 'balanced';
+  $('autoRotateMin').value = String(s.autoRotateMin || 0);
+  $('cookieBanners').checked = s.cookieBanners !== false;
+  $('fpLog').checked = s.fpLog !== false;
+  const tc = $('travelCountry');
+  if (tc.children.length <= 1) {
+    Object.entries(COUNTRIES).forEach(([code, name]) => {
+      const o = document.createElement('option'); o.value = code; o.textContent = name; tc.appendChild(o);
+    });
+  }
+  tc.value = s.travelCountry || '';
+
   const cd = s.cleanData || { cookies: true, storage: true, cache: true };
   $('clean_cookies').checked = !!cd.cookies;
   $('clean_storage').checked = !!cd.storage;
@@ -150,6 +176,11 @@ $('clean_storage').addEventListener('change', saveClean);
 $('clean_cache').addEventListener('change', saveClean);
 
 $('theme').addEventListener('change', (e) => { applyTheme(e.target.value); save({ theme: e.target.value }); });
+$('shieldLevel').addEventListener('change', (e) => { save({ shieldLevel: e.target.value, protections: protectionsForLevel(e.target.value) }).then(load); });
+$('autoRotateMin').addEventListener('change', (e) => save({ autoRotateMin: Number(e.target.value) }));
+$('travelCountry').addEventListener('change', (e) => { save({ travelCountry: e.target.value }).then(load); });
+$('cookieBanners').addEventListener('change', (e) => save({ cookieBanners: e.target.checked }));
+$('fpLog').addEventListener('change', (e) => save({ fpLog: e.target.checked }));
 $('openDash2').addEventListener('click', () => chrome.tabs.create({ url: chrome.runtime.getURL('dashboard/dashboard.html') }));
 $('profSave').addEventListener('click', async () => {
   const name = $('profName').value.trim();

@@ -5,7 +5,7 @@
 //  * publish a runtime config that content scripts read
 //  * keep HTTP headers (UA / Accept-Language / Sec-CH-UA) in sync via DNR
 
-import { DEFAULT_SETTINGS, PRESETS, randomProfile, RANDOM_POOLS } from './lib/profiles.js';
+import { DEFAULT_SETTINGS, PRESETS, randomProfile, RANDOM_POOLS, TRAVEL_COUNTRIES } from './lib/profiles.js';
 import { mulberry32, seedFrom } from './lib/rng.js';
 
 const SETTINGS_KEY = 'nebula:settings';
@@ -17,7 +17,9 @@ const DNR_RULE_BASE = 1000;
 const TRACKER_RULE_ID = 2000;
 const URLCLEAN_RULE_ID = 3000;
 const REFERER_RULE_ID = 3001;
+const TPCOOKIES_RULE_ID = 3002;
 const STATS_KEY = 'nebula:stats';
+const FPLOG_KEY = 'nebula:fplog';
 
 // Tracking query parameters stripped from URLs (exact names; the match regex is
 // built from this same list so removal always changes the URL — no redirect loop).
@@ -92,6 +94,7 @@ try {
     try { host = new URL(d.url).hostname; } catch { return; }
     if (hostIsTracker(host)) {
       tabTrackers[d.tabId] = (tabTrackers[d.tabId] || 0) + 1;
+      setBadge(d.tabId);
       statsPending++;
       const rd = regDomain(host);
       statsTopPending[rd] = (statsTopPending[rd] || 0) + 1;
@@ -100,14 +103,41 @@ try {
   }, { urls: ['<all_urls>'] });
 } catch {}
 
+// Record a fingerprinting attempt reported by a page (which site read canvas/etc).
+async function recordFp(host, kind) {
+  try {
+    const data = (await chrome.storage.local.get(FPLOG_KEY))[FPLOG_KEY] || {};
+    const e = data[host] || {};
+    e[kind] = (e[kind] || 0) + 1;
+    e._ts = Date.now();
+    data[host] = e;
+    const hosts = Object.entries(data).sort((a, b) => (b[1]._ts || 0) - (a[1]._ts || 0));
+    if (hosts.length > 60) for (const [h] of hosts.slice(60)) delete data[h];
+    await chrome.storage.local.set({ [FPLOG_KEY]: data });
+  } catch {}
+}
+
 try {
   chrome.alarms.create('nebula-flush', { periodInMinutes: 1 });
-  chrome.alarms.onAlarm.addListener((a) => { if (a.name === 'nebula-flush') flushStats(); });
+  chrome.alarms.onAlarm.addListener((a) => {
+    if (a.name === 'nebula-flush') flushStats();
+    else if (a.name === 'nebula-rotate') regenerateSeed();
+  });
 } catch {}
+
+// Keep the auto-rotation alarm in sync with the setting.
+async function syncRotateAlarm() {
+  try {
+    await chrome.alarms.clear('nebula-rotate');
+    const settings = await getSettings();
+    const m = Number(settings.autoRotateMin) || 0;
+    if (m > 0) chrome.alarms.create('nebula-rotate', { periodInMinutes: m, delayInMinutes: m });
+  } catch {}
+}
 
 try {
   chrome.webNavigation.onCommitted.addListener((d) => {
-    if (d.frameId === 0) tabTrackers[d.tabId] = 0;
+    if (d.frameId === 0) { tabTrackers[d.tabId] = 0; setBadge(d.tabId); }
   });
 } catch {}
 
@@ -214,6 +244,23 @@ function resolveProfile(settings, seed) {
   }
 }
 
+// Resolve the profile AND apply timezone source (IP) + travel-mode overrides.
+async function activeProfile(settings, seed) {
+  const profile = resolveProfile(settings, seed);
+  if (settings.timezoneSource === 'ip' && settings.protections.timezone) {
+    const geo = await getGeo(false);
+    if (geo && geo.timezone) profile.timezone = geo.timezone;
+  }
+  // Travel mode overrides timezone + locale to the chosen country (wins over IP).
+  if (settings.travelCountry && TRAVEL_COUNTRIES[settings.travelCountry]) {
+    const t = TRAVEL_COUNTRIES[settings.travelCountry];
+    profile.timezone = t.tz;
+    profile.language = t.language;
+    profile.languages = t.languages.slice();
+  }
+  return profile;
+}
+
 // ---- declarativeNetRequest header sync -------------------------------------
 
 function buildSecChUa(brands) {
@@ -257,6 +304,17 @@ async function updateHeaderRules(settings, profile) {
     addRules.push({
       id: REFERER_RULE_ID, priority: 1,
       action: { type: 'modifyHeaders', requestHeaders: [{ header: 'referer', operation: 'remove' }] },
+      condition: cond
+    });
+  }
+
+  // --- block third-party cookies -------------------------------------------
+  if (settings.enabled && settings.protections.thirdPartyCookies) {
+    const cond = { domainType: 'thirdParty', resourceTypes: ['main_frame', 'sub_frame', 'xmlhttprequest', 'script', 'image', 'media', 'font', 'stylesheet', 'ping', 'other'] };
+    if (excluded.length) cond.excludedInitiatorDomains = excluded;
+    addRules.push({
+      id: TPCOOKIES_RULE_ID, priority: 1,
+      action: { type: 'modifyHeaders', requestHeaders: [{ header: 'cookie', operation: 'remove' }], responseHeaders: [{ header: 'set-cookie', operation: 'remove' }] },
       condition: cond
     });
   }
@@ -390,13 +448,7 @@ async function getGeo(force) {
 async function rebuild() {
   const settings = await getSettings();
   const seed = await getSeed();
-  const profile = resolveProfile(settings, seed);
-
-  // Align the timezone with the IP geolocation when that option is on.
-  if (settings.timezoneSource === 'ip' && settings.protections.timezone) {
-    const geo = await getGeo(false);
-    if (geo && geo.timezone) profile.timezone = geo.timezone;
-  }
+  const profile = await activeProfile(settings, seed);
 
   const config = {
     enabled: settings.enabled,
@@ -408,18 +460,25 @@ async function rebuild() {
     timingPrecisionMs: settings.timingPrecisionMs,
     allowlist: normalizeDomains(settings.allowlist),
     baseSeed: seed,
-    profile
+    profile,
+    fpLog: settings.fpLog !== false,
+    cookieBanners: settings.cookieBanners !== false
   };
   await chrome.storage.local.set({ [CONFIG_KEY]: config });
   await updateHeaderRules(settings, profile);
   updateBadge(settings.enabled);
+  await syncRotateAlarm();
   return config;
 }
 
 function updateBadge(enabled) {
+  // Only the color here; the text is the per-tab tracker count (setBadge).
+  try { chrome.action.setBadgeBackgroundColor({ color: enabled ? '#6d5efc' : '#888888' }); } catch {}
+}
+function setBadge(tabId) {
   try {
-    chrome.action.setBadgeBackgroundColor({ color: enabled ? '#6d5efc' : '#888888' });
-    chrome.action.setBadgeText({ text: enabled ? '' : 'off' });
+    const n = tabTrackers[tabId] || 0;
+    chrome.action.setBadgeText({ tabId, text: n ? (n > 999 ? '999+' : String(n)) : '' });
   } catch {}
 }
 
@@ -430,7 +489,38 @@ chrome.runtime.onInstalled.addListener(async () => {
   if (!got[SETTINGS_KEY]) await chrome.storage.local.set({ [SETTINGS_KEY]: DEFAULT_SETTINGS });
   await getSeed();
   await rebuild();
+  setupContextMenus();
 });
+
+// ---- right-click context menu ----------------------------------------------
+function setupContextMenus() {
+  try {
+    chrome.contextMenus.removeAll(() => {
+      chrome.contextMenus.create({ id: 'nebula-newid', title: 'Nébula: Nueva identidad', contexts: ['all'] });
+      chrome.contextMenus.create({ id: 'nebula-allow', title: 'Nébula: Lista blanca este sitio', contexts: ['all'] });
+      chrome.contextMenus.create({ id: 'nebula-panel', title: 'Nébula: Abrir panel', contexts: ['all'] });
+    });
+  } catch {}
+}
+
+try {
+  chrome.contextMenus.onClicked.addListener(async (info, tab) => {
+    if (info.menuItemId === 'nebula-newid') {
+      await regenerateSeed();
+    } else if (info.menuItemId === 'nebula-allow' && tab && tab.url) {
+      try {
+        const host = new URL(tab.url).hostname;
+        const parts = host.split('.');
+        const base = parts.length <= 2 ? host : parts.slice(-2).join('.');
+        const s = await getSettings();
+        if (!s.allowlist.includes(base)) await setSettings({ allowlist: [...s.allowlist, base] });
+        if (tab.id != null) chrome.tabs.reload(tab.id);
+      } catch {}
+    } else if (info.menuItemId === 'nebula-panel') {
+      chrome.tabs.create({ url: chrome.runtime.getURL('dashboard/dashboard.html') });
+    }
+  });
+} catch {}
 
 chrome.runtime.onStartup.addListener(async () => {
   // New browser session → fresh seed for per-session mode.
@@ -438,6 +528,7 @@ chrome.runtime.onStartup.addListener(async () => {
   // Refresh IP geolocation (the exit IP may have changed since last run).
   const settings = await getSettings();
   if (settings.timezoneSource === 'ip') { await getGeo(true); await rebuild(); }
+  setupContextMenus();
 });
 
 // Keyboard shortcuts.
@@ -465,11 +556,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       case 'getState': {
         const settings = await getSettings();
         const seed = await getSeed();
-        const profile = resolveProfile(settings, seed);
-        if (settings.timezoneSource === 'ip' && settings.protections.timezone) {
-          const geo = await getGeo(false);
-          if (geo && geo.timezone) profile.timezone = geo.timezone;
-        }
+        const profile = await activeProfile(settings, seed);
         const geo = (await chrome.storage.local.get(GEO_KEY))[GEO_KEY] || null;
         sendResponse({ settings, seed, profile, presets: presetList(), geo });
         break;
@@ -501,11 +588,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
           cleared = await clearBrowsingState(settings.cleanData);
         }
         const settings = await getSettings();
-        const profile = resolveProfile(settings, seed);
-        if (settings.timezoneSource === 'ip' && settings.protections.timezone) {
-          const geo = await getGeo(false);
-          if (geo && geo.timezone) profile.timezone = geo.timezone;
-        }
+        const profile = await activeProfile(settings, seed);
         sendResponse({ ok: true, seed, cleared, profile });
         break;
       }
@@ -529,9 +612,15 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         await flushStats();
         const settings = await getSettings();
         const seed = await getSeed();
-        const profile = resolveProfile(settings, seed);
+        const profile = await activeProfile(settings, seed);
         const stats = (await chrome.storage.local.get(STATS_KEY))[STATS_KEY] || { total: 0, days: {}, top: {} };
-        sendResponse({ ok: true, stats, settings, profile });
+        const fplog = (await chrome.storage.local.get(FPLOG_KEY))[FPLOG_KEY] || {};
+        sendResponse({ ok: true, stats, settings, profile, fplog });
+        break;
+      }
+      case 'fpAttempt': {
+        if (msg.host && msg.kind) recordFp(msg.host, msg.kind);
+        sendResponse({ ok: true });
         break;
       }
       case 'panic': {

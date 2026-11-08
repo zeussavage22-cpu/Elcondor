@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Nébula — Anti-Fingerprint Shield",
-  "version": "2.0.2",
+  "version": "2.1.0",
   "description": "Protección de privacidad avanzada contra el fingerprinting del navegador. Código abierto. Canvas, WebGL, audio, fuentes, User-Agent, zona horaria, WebRTC y más.",
   "icons": {
     "16": "icons/16.png",
@@ -18,7 +18,8 @@
     "webNavigation",
     "browsingData",
     "webRequest",
-    "alarms"
+    "alarms",
+    "contextMenus"
   ],
   "host_permissions": ["<all_urls>"],
   "background": {
@@ -55,6 +56,13 @@
       "run_at": "document_start",
       "js": ["src/content/protect.js"],
       "world": "MAIN"
+    },
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "all_frames": false,
+      "run_at": "document_idle",
+      "js": ["src/content/cookies.js"],
+      "world": "ISOLATED"
     }
   ],
   "web_accessible_resources": [

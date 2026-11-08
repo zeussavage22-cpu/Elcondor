@@ -51,7 +51,8 @@
         webrtcMode: config.webrtcMode,
         timingPrecisionMs: config.timingPrecisionMs,
         baseSeed: config.baseSeed,
-        profile: config.profile
+        profile: config.profile,
+        fpLog: config.fpLog
       };
     }
     try {
@@ -70,6 +71,13 @@
 
   // MAIN may boot before we deliver config and will ask for it.
   window.addEventListener(EVT_READY, load, true);
+
+  // Forward fingerprinting-attempt reports from the page to the background.
+  window.addEventListener('nebula:fp', (ev) => {
+    try {
+      chrome.runtime.sendMessage({ type: 'fpAttempt', host: hostname(), kind: String(ev.detail) });
+    } catch {}
+  }, true);
 
   // Live updates when settings change in the popup/options.
   try {

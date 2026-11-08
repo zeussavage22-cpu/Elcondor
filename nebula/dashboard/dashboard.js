@@ -4,7 +4,7 @@ const PROTECTION_KEYS = [
   'canvas', 'webgl', 'audio', 'fonts', 'clientRects', 'navigator', 'hardware', 'screen',
   'timezone', 'locale', 'webrtc', 'battery', 'mediaDevices', 'plugins', 'speech', 'timing',
   'uaData', 'connection', 'webdriver', 'toStringMask', 'headers', 'trackers', 'sensors',
-  'webgpu', 'dnt', 'urlClean', 'referer'
+  'webgpu', 'dnt', 'urlClean', 'referer', 'thirdPartyCookies'
 ];
 const THEMES = {
   purple: ['#7b7bff', '#39d8c8'], teal: ['#1fd6c4', '#4db8ff'], blue: ['#4d7cff', '#39d8c8'],
@@ -74,7 +74,7 @@ function shortUA(ua) {
 async function load() {
   const res = await send('getStatsFull');
   if (!res || !res.ok) { $('status').textContent = 'No se pudieron cargar las estadísticas'; return; }
-  const { stats, settings, profile } = res;
+  const { stats, settings, profile, fplog } = res;
   applyTheme(settings.theme);
 
   const days = last7();
@@ -99,7 +99,22 @@ async function load() {
     <div>GPU: <b>${esc((profile.webgl && profile.webgl.renderer) || '—').replace(/^ANGLE \(/, '').replace(/\)$/, '')}</b></div>
     <div>Idioma: <b>${esc((profile.languages || []).join(', '))}</b></div>`;
 
+  $('fpList').innerHTML = buildFpLog(fplog);
+
   $('status').textContent = 'Actualizado ' + new Date().toLocaleTimeString();
+}
+
+const FP_NAME = { canvas: 'Canvas', webgl: 'WebGL', audio: 'Audio', fonts: 'Fuentes' };
+function buildFpLog(fplog) {
+  const hosts = Object.entries(fplog || {})
+    .map(([h, e]) => [h, e, e._ts || 0])
+    .sort((a, b) => b[2] - a[2])
+    .slice(0, 12);
+  if (!hosts.length) return '<div class="empty">Ningún sitio ha intentado leer tu huella todavía. 👌</div>';
+  return hosts.map(([host, e]) => {
+    const kinds = Object.keys(e).filter((k) => k !== '_ts').map((k) => FP_NAME[k] || k).join(', ');
+    return `<div class="trow"><span class="tname">${esc(host)}</span><span class="tcount">${esc(kinds)}</span></div>`;
+  }).join('');
 }
 
 $('refresh').addEventListener('click', load);

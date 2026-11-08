@@ -27,7 +27,8 @@ const PROTECTION_LABELS = {
   webgpu: 'WebGPU',
   dnt: 'No rastrear (DNT/GPC)',
   urlClean: 'Limpiar URLs',
-  referer: 'Ocultar Referer'
+  referer: 'Ocultar Referer',
+  thirdPartyCookies: 'Cookies de terceros'
 };
 
 const THEMES = {

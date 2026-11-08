@@ -34,6 +34,38 @@
     </section>
 
     <section class="panel">
+      <h2>Automatización y extras</h2>
+      <div class="field">
+        <label>Nivel de escudo</label>
+        <select id="shieldLevel">
+          <option value="basic">Básico (menos roturas)</option>
+          <option value="balanced">Equilibrado (recomendado)</option>
+          <option value="max">Máximo (todo activado)</option>
+        </select>
+        <p class="hint">Activa de golpe el conjunto de protecciones adecuado.</p>
+      </div>
+      <div class="field">
+        <label>Rotación automática de identidad</label>
+        <select id="autoRotateMin">
+          <option value="0">Desactivada</option>
+          <option value="15">Cada 15 minutos</option>
+          <option value="30">Cada 30 minutos</option>
+          <option value="60">Cada hora</option>
+          <option value="180">Cada 3 horas</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Modo viaje (zona horaria + idioma de otro país)</label>
+        <select id="travelCountry">
+          <option value="">Desactivado (usar IP / aleatorio)</option>
+        </select>
+        <p class="hint">Fuerza la zona horaria y el idioma de un país. Útil con VPN. Sustituye a «según mi IP».</p>
+      </div>
+      <label class="tog" style="margin-bottom:10px"><input type="checkbox" id="cookieBanners" /> Cerrar automáticamente los avisos de cookies</label>
+      <label class="tog"><input type="checkbox" id="fpLog" /> Registrar qué sitios intentan identificarte (huella)</label>
+    </section>
+
+    <section class="panel">
       <h2>Perfiles guardados</h2>
       <p class="hint">Guarda tu configuración actual (modo, dispositivo, región, protecciones) como una identidad con nombre y cámbiala con un clic.</p>
       <div class="field" style="display:flex;gap:8px;align-items:center">
