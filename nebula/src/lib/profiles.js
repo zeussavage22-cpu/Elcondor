@@ -80,6 +80,7 @@ export const DEFAULT_SETTINGS = {
   shieldLevel: 'balanced', // basic | balanced | max (quick protection presets)
   autoRotateMin: 0, // 0 = off; otherwise minutes between automatic new identities
   cookieBanners: true, // auto-hide / dismiss cookie-consent banners
+  cfHelper: true, // detect Cloudflare "verify you are human" loops and offer to allowlist
   fpLog: true, // record which sites tried to fingerprint you (shown in the panel)
   travelCountry: '' // '' = off; else a country code (ES, US, MX, ...) forcing tz+locale
 };

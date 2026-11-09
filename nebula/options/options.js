@@ -110,6 +110,7 @@ function render() {
   $('shieldLevel').value = s.shieldLevel || 'balanced';
   $('autoRotateMin').value = String(s.autoRotateMin || 0);
   $('cookieBanners').checked = s.cookieBanners !== false;
+  $('cfHelper').checked = s.cfHelper !== false;
   $('fpLog').checked = s.fpLog !== false;
   const tc = $('travelCountry');
   if (tc.children.length <= 1) {
@@ -180,6 +181,7 @@ $('shieldLevel').addEventListener('change', (e) => { save({ shieldLevel: e.targe
 $('autoRotateMin').addEventListener('change', (e) => save({ autoRotateMin: Number(e.target.value) }));
 $('travelCountry').addEventListener('change', (e) => { save({ travelCountry: e.target.value }).then(load); });
 $('cookieBanners').addEventListener('change', (e) => save({ cookieBanners: e.target.checked }));
+$('cfHelper').addEventListener('change', (e) => save({ cfHelper: e.target.checked }));
 $('fpLog').addEventListener('change', (e) => save({ fpLog: e.target.checked }));
 $('openDash2').addEventListener('click', () => chrome.tabs.create({ url: chrome.runtime.getURL('dashboard/dashboard.html') }));
 $('profSave').addEventListener('click', async () => {

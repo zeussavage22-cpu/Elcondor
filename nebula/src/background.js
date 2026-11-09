@@ -462,7 +462,8 @@ async function rebuild() {
     baseSeed: seed,
     profile,
     fpLog: settings.fpLog !== false,
-    cookieBanners: settings.cookieBanners !== false
+    cookieBanners: settings.cookieBanners !== false,
+    cfHelper: settings.cfHelper !== false
   };
   await chrome.storage.local.set({ [CONFIG_KEY]: config });
   await updateHeaderRules(settings, profile);
@@ -620,6 +621,15 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       }
       case 'fpAttempt': {
         if (msg.host && msg.kind) recordFp(msg.host, msg.kind);
+        sendResponse({ ok: true });
+        break;
+      }
+      case 'allowlistSite': {
+        const host = String(msg.host || '');
+        const parts = host.split('.');
+        const base = parts.length <= 2 ? host : parts.slice(-2).join('.');
+        const s = await getSettings();
+        if (base && !s.allowlist.includes(base)) await setSettings({ allowlist: [...s.allowlist, base] });
         sendResponse({ ok: true });
         break;
       }
