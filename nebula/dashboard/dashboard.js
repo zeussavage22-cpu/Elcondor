@@ -101,6 +101,13 @@ async function load() {
 
   $('fpList').innerHTML = buildFpLog(fplog);
 
+  aiReady = !!(settings.ai && settings.ai.enabled);
+  $('chatHint').textContent = aiReady ? '' : 'Activa el asistente IA en Ajustes para chatear (gratis con Pollinations).';
+  if (!chatHistory.length) {
+    chatHistory.push({ role: 'assistant', content: '¡Hola! Soy Nébula. Pregúntame sobre privacidad, fingerprinting o cómo usar la extensión.' });
+    renderChat();
+  }
+
   $('status').textContent = 'Actualizado ' + new Date().toLocaleTimeString();
 }
 
@@ -116,6 +123,35 @@ function buildFpLog(fplog) {
     return `<div class="trow"><span class="tname">${esc(host)}</span><span class="tcount">${esc(kinds)}</span></div>`;
   }).join('');
 }
+
+// ---- AI chat ----
+let chatHistory = [];
+let aiReady = false;
+function renderChat() {
+  const box = $('chatBox');
+  box.innerHTML = chatHistory.map((m) => `<div class="msg ${m.role === 'user' ? 'user' : 'bot'}">${esc(m.content)}</div>`).join('');
+  box.scrollTop = box.scrollHeight;
+}
+async function sendChat() {
+  const inp = $('chatText');
+  const text = inp.value.trim();
+  if (!text) return;
+  if (!aiReady) { $('chatHint').textContent = 'Activa el asistente IA en Ajustes (Asistente con IA).'; return; }
+  inp.value = '';
+  chatHistory.push({ role: 'user', content: text });
+  renderChat();
+  const box = $('chatBox');
+  const thinking = document.createElement('div');
+  thinking.className = 'msg bot thinking'; thinking.textContent = 'Pensando…';
+  box.appendChild(thinking); box.scrollTop = box.scrollHeight;
+  const res = await send('aiChat', { history: chatHistory });
+  thinking.remove();
+  if (res && res.ok) chatHistory.push({ role: 'assistant', content: res.text || '(sin respuesta)' });
+  else chatHistory.push({ role: 'assistant', content: '⚠️ ' + ((res && res.error) || 'Error') });
+  renderChat();
+}
+$('chatSend').addEventListener('click', sendChat);
+$('chatText').addEventListener('keydown', (e) => { if (e.key === 'Enter') sendChat(); });
 
 $('refresh').addEventListener('click', load);
 load();

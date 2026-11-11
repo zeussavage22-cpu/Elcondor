@@ -624,6 +624,11 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         sendResponse({ ok: true });
         break;
       }
+      case 'aiChat': {
+        const r = await aiChat(msg.history || []);
+        sendResponse(r);
+        break;
+      }
       case 'allowlistSite': {
         const host = String(msg.host || '');
         const parts = host.split('.');
@@ -775,4 +780,73 @@ async function aiSuggest(host) {
   const suggestion = parseSuggestion(text);
   if (!suggestion) return { ok: false, error: 'La IA no devolvió una sugerencia válida.' };
   return { ok: true, suggestion };
+}
+
+// Generic multi-message completion across all providers (used by the chat).
+async function aiComplete(ai, system, messages, maxTokens) {
+  maxTokens = maxTokens || 700;
+  const OPENAI_COMPAT = {
+    openai: { url: 'https://api.openai.com/v1/chat/completions', model: 'gpt-4o-mini' },
+    groq: { url: 'https://api.groq.com/openai/v1/chat/completions', model: 'llama-3.3-70b-versatile' },
+    openrouter: { url: 'https://openrouter.ai/api/v1/chat/completions', model: 'meta-llama/llama-3.3-70b-instruct:free' },
+    deepseek: { url: 'https://api.deepseek.com/chat/completions', model: 'deepseek-chat' },
+    pollinations: { url: 'https://text.pollinations.ai/openai', model: 'openai', noKey: true }
+  };
+  async function callOnce() {
+    let res, data, text = '';
+    if (ai.provider === 'gemini') {
+      const model = ai.model || 'gemini-3.8-flash';
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(ai.apiKey)}`;
+      const contents = messages.map((m) => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] }));
+      res = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ system_instruction: { parts: [{ text: system }] }, contents, generationConfig: { maxOutputTokens: maxTokens, temperature: 0.4 } }) });
+      data = await res.json().catch(() => ({}));
+      if (!res.ok) { const e = new Error((data.error && data.error.message) || ('HTTP ' + res.status)); e.status = res.status; throw e; }
+      const parts = data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts;
+      text = (parts || []).map((p) => p.text || '').join('');
+    } else if (OPENAI_COMPAT[ai.provider]) {
+      const cfg = OPENAI_COMPAT[ai.provider];
+      const headers = { 'content-type': 'application/json' };
+      if (!cfg.noKey) headers.authorization = 'Bearer ' + ai.apiKey;
+      if (ai.provider === 'openrouter') headers['x-title'] = 'Nebula Anti-Fingerprint';
+      res = await fetch(cfg.url, { method: 'POST', headers, body: JSON.stringify({ model: ai.model || cfg.model, max_tokens: maxTokens, messages: [{ role: 'system', content: system }, ...messages] }) });
+      const raw = await res.text();
+      try { data = JSON.parse(raw); } catch { data = null; }
+      if (!res.ok) { const e = new Error((data && data.error && data.error.message) || raw.slice(0, 160) || ('HTTP ' + res.status)); e.status = res.status; throw e; }
+      text = (data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || (data ? '' : raw);
+    } else {
+      res = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'content-type': 'application/json', 'x-api-key': ai.apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' }, body: JSON.stringify({ model: ai.model || 'claude-opus-5-5', max_tokens: maxTokens, system, messages }) });
+      data = await res.json().catch(() => ({}));
+      if (!res.ok) { const e = new Error((data.error && data.error.message) || ('HTTP ' + res.status)); e.status = res.status; throw e; }
+      text = (data.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('');
+    }
+    return text;
+  }
+  const isTransient = (e) => [429, 500, 502, 503, 529].includes(e && e.status) || /high demand|overload|try again|temporarily|unavailable|rate.?limit/i.test(String((e && e.message) || ''));
+  let text = '', lastErr = null;
+  for (let i = 0; i < 3; i++) {
+    try { text = await callOnce(); lastErr = null; break; }
+    catch (e) { lastErr = e; if (i === 2 || !isTransient(e)) break; await new Promise((r) => setTimeout(r, 1200 * (i + 1))); }
+  }
+  if (lastErr) {
+    let m = String((lastErr && lastErr.message) || lastErr);
+    if (isTransient(lastErr)) m = 'El servidor de IA está saturado. Intenta de nuevo en un momento.';
+    return { ok: false, error: m };
+  }
+  return { ok: true, text: (text || '').trim() };
+}
+
+async function aiChat(history) {
+  const settings = await getSettings();
+  const ai = settings.ai || {};
+  if (!ai.enabled) return { ok: false, error: 'Activa el asistente IA en Ajustes.' };
+  if (ai.provider !== 'pollinations' && !ai.apiKey) return { ok: false, error: 'Falta la API key en Ajustes.' };
+  const system = [
+    'Eres el asistente de privacidad de "Nébula", una extensión anti-fingerprinting de código abierto.',
+    'Ayudas al usuario a entender el fingerprinting del navegador, los rastreadores, la privacidad web y cómo usar la extensión (perfiles, lista blanca, modo viaje, bloqueo de rastreadores, etc.).',
+    'Responde en español, claro y conciso. Sé honesto sobre los límites (una extensión no cambia las capas de red TCP/TLS, no te hace 100% invisible).',
+    'NO ayudas a evadir el antifraude, la detección de bots ni la verificación de ningún servicio; NO ayudas con fraude ni actividades ilegales. Si te lo piden, explícalo y redirige a la privacidad legítima.'
+  ].join(' ');
+  const messages = (history || []).slice(-12).map((m) => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: String(m.content || '').slice(0, 2000) }));
+  if (!messages.length) return { ok: false, error: 'Escribe una pregunta.' };
+  return aiComplete(ai, system, messages, 700);
 }

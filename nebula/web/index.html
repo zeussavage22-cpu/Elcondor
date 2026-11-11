@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Nébula — Escudo Anti-Fingerprint · Privacidad en el navegador</title>
+  <meta name="description" content="Nébula es una extensión de navegador de código abierto que te protege del fingerprinting y los rastreadores. Canvas, WebGL, audio, User-Agent, zona horaria, WebRTC y más." />
+  <link rel="icon" href="img/logo.png" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <nav>
+    <div class="wrap">
+      <div class="brand"><img src="img/logo.png" class="logo" alt="Nébula" /> Nébula</div>
+      <div class="nav-links">
+        <a href="#features">Funciones</a>
+        <a href="#lab">Test Lab</a>
+        <a href="#faq">FAQ</a>
+        <a class="btn" href="#download">Descargar</a>
+      </div>
+    </div>
+  </nav>
+
+  <header class="hero">
+    <div class="orb o1"></div><div class="orb o2"></div>
+    <div class="wrap z">
+      <span class="badge-pill">◓ Código abierto · MIT · Sin telemetría</span>
+      <h1>Navega sin dejar <span class="grad">huella</span>.</h1>
+      <p class="sub">Nébula rompe tu huella digital y bloquea rastreadores. Los sitios ya no pueden identificarte por tu canvas, WebGL, fuentes, User-Agent o zona horaria. Todo local, sin recoger nada.</p>
+      <div class="cta">
+        <a class="btn" href="#download">⬇ Descargar extensión</a>
+        <a class="btn ghost" href="#lab">🔬 Probar tu huella</a>
+      </div>
+      <p class="note">Chrome · Edge · Brave · Opera · navegadores Chromium</p>
+    </div>
+  </header>
+
+  <section class="pad" id="stats">
+    <div class="wrap">
+      <div class="strip">
+        <div><div class="n">28</div><div class="l">protecciones</div></div>
+        <div><div class="n">12</div><div class="l">dispositivos a imitar</div></div>
+        <div><div class="n">0</div><div class="l">datos recogidos</div></div>
+        <div><div class="n">100%</div><div class="l">local y abierto</div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="pad" id="features">
+    <div class="wrap">
+      <h2 class="h2">Protección en todos los frentes</h2>
+      <p class="sub2">Una suite completa de privacidad, no solo un bloqueador.</p>
+      <div class="bento">
+        <div class="tile span2"><div class="ic">🎭</div><h3>Huella falseada y coherente</h3><p>Canvas, WebGL, audio, fuentes, User-Agent, pantalla, zona horaria, WebRTC… con ruido por sitio y una identidad consistente en JS y cabeceras HTTP.</p></div>
+        <div class="tile"><div class="ic">🛡️</div><h3>Bloqueo de rastreadores</h3><p>~59 dominios de analytics/ads/session-replay, con contador en vivo.</p></div>
+        <div class="tile"><div class="ic">🧠</div><h3>Asesor con IA</h3><p>Te sugiere el perfil ideal por sitio (gratis, con Pollinations o tu propia key).</p></div>
+        <div class="tile"><div class="ic">📊</div><h3>Panel con estadísticas</h3><p>Rastreadores bloqueados por día y qué sitios intentaron identificarte.</p></div>
+        <div class="tile"><div class="ic">🌍</div><h3>Modo viaje</h3><p>Fija zona horaria e idioma de otro país. Ideal con VPN.</p></div>
+        <div class="tile"><div class="ic">🍪</div><h3>Auto-cookies y URLs limpias</h3><p>Cierra avisos de cookies y quita parámetros de rastreo (utm_, fbclid…).</p></div>
+        <div class="tile"><div class="ic">🔄</div><h3>Identidades y rotación</h3><p>Perfiles guardados, rotación automática y "perfil nuevo limpio".</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="pad">
+    <div class="wrap shots">
+      <img src="img/popup.png" alt="Popup de Nébula" />
+      <div class="cap">
+        <h3>Control total, diseño limpio</h3>
+        <p>Enciende/apaga, elige dispositivo, modo y zona horaria, y mira cuántos rastreadores bloqueaste — todo desde un popup moderno estilo bento.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="pad">
+    <div class="wrap shots">
+      <div class="cap">
+        <h3>Panel de privacidad en tiempo real</h3>
+        <p>Gráficas de rastreadores bloqueados, top de rastreadores, cobertura de protección y el registro de qué sitios intentaron leer tu huella.</p>
+      </div>
+      <img src="img/dashboard.png" alt="Panel de Nébula" />
+    </div>
+  </section>
+
+  <section class="pad" id="lab">
+    <div class="wrap">
+      <h2 class="h2">🔬 Test Lab</h2>
+      <p class="sub2">Mira lo que los sitios ven de ti. Instala Nébula, recarga esta página y compara: los hashes deberían cambiar y tu identidad verse distinta.</p>
+      <div class="lab">
+        <button class="btn" id="run">↻ Volver a medir</button>
+        <table id="tbl"><tbody></tbody></table>
+      </div>
+    </div>
+  </section>
+
+  <section class="pad" id="download">
+    <div class="wrap" style="text-align:center">
+      <h2 class="h2">Descargar</h2>
+      <p class="sub2">Instálala en 30 segundos en cualquier navegador Chromium.</p>
+      <div class="cta" style="justify-content:center;display:flex;gap:12px;flex-wrap:wrap">
+        <a class="btn" href="https://github.com/zeussavage22-cpu/Elcondor" target="_blank" rel="noopener">⬇ Código y descarga (GitHub)</a>
+      </div>
+      <p class="note" style="margin-top:18px;max-width:560px;margin-left:auto;margin-right:auto">
+        1) Descarga/clona el repo · 2) <code>chrome://extensions</code> → Modo desarrollador ·
+        3) "Cargar descomprimida" → carpeta <code>nebula</code>.
+      </p>
+    </div>
+  </section>
+
+  <section class="pad faq" id="faq">
+    <div class="wrap" style="max-width:760px">
+      <h2 class="h2">Preguntas frecuentes</h2>
+      <details><summary>¿Nébula recoge mis datos?</summary><p>No. Cero telemetría, cero servidores. Todo ocurre en tu navegador. Es código abierto: puedes auditarlo.</p></details>
+      <details><summary>¿Por qué algunos sitios (Cloudflare, bancos) me piden verificación?</summary><p>Esos sitios comprueban que tu navegador no esté manipulado — justo lo que hace Nébula. Para ellos usa la lista blanca (Nébula trae un aviso automático con un botón para desactivarse ahí).</p></details>
+      <details><summary>¿Me hace 100% invisible?</summary><p>No existe tal cosa. Nébula rompe la unicidad y estabilidad de tu huella para que seas mucho más difícil de rastrear, pero capas de red (TCP/TLS) no se pueden cambiar desde una extensión.</p></details>
+      <details><summary>¿Es gratis?</summary><p>Sí, totalmente gratis y de código abierto (licencia MIT).</p></details>
+    </div>
+  </section>
+
+  <footer>
+    <div class="wrap">
+      <span>◓ Nébula — Anti-Fingerprint Shield · MIT</span>
+      <span><a href="https://github.com/zeussavage22-cpu/Elcondor" target="_blank" rel="noopener">GitHub</a></span>
+    </div>
+  </footer>
+
+  <script src="testlab.js"></script>
+</body>
+</html>
