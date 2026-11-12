@@ -751,14 +751,28 @@
   // ====================================================================== //
   //  config intake                                                         //
   // ====================================================================== //
-  window.addEventListener('nebula:config', function (ev) {
+  function applyConfig(detail) {
     try {
-      const data = JSON.parse(ev.detail);
+      const data = JSON.parse(detail);
       CFG = data && data.enabled ? data : { enabled: false };
       if (CFG.enabled) reseed();
       mark(CFG.enabled ? 'active' : 'off', CFG.enabled && CFG.profile ? CFG.profile.userAgent : '');
     } catch {}
-  }, true);
+  }
+
+  window.addEventListener('nebula:config', function (ev) { applyConfig(ev.detail); }, true);
+
+  // Synchronous boot config, left by the user script the background registers
+  // (see syncBootScript). It is in place before any page script runs, so the
+  // protections are active from the very first instruction of the page instead
+  // of after the asynchronous storage read in the bridge.
+  try {
+    const boot = window.__nebulaBoot;
+    if (typeof boot === 'string') {
+      delete window.__nebulaBoot;
+      applyConfig(boot);
+    }
+  } catch {}
 
   // Ask the bridge for config (it may have loaded after us).
   try { window.dispatchEvent(new CustomEvent('nebula:ready')); } catch {}

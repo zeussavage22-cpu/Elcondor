@@ -15,6 +15,16 @@ entre sitios.
 
 ---
 
+## 🆕 v2.3
+
+- **⚡ Protección instantánea.** La configuración se inyecta de forma síncrona con un *user script*,
+  así que la huella falsa está activa **antes** de que se ejecute cualquier script de la página.
+  Antes, los scripts del `<head>` alcanzaban a leer los valores reales durante un instante.
+  Requiere activar **«Permitir scripts de usuario»** en los detalles de la extensión
+  (o el *Modo desarrollador* en navegadores más antiguos); el popup avisa si falta.
+- **🧬 Versión real del motor.** Los perfiles Chromium ya no fingen ser Chrome 129–131: usan la
+  versión real del navegador (p. ej. 157 en Titanium), que es la que delatan las APIs disponibles.
+
 ## 🆕 v2.1
 
 - **🔢 Badge en el icono** con rastreadores bloqueados en vivo.

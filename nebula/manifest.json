@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Nébula — Anti-Fingerprint Shield",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "description": "Protección de privacidad avanzada contra el fingerprinting del navegador. Código abierto. Canvas, WebGL, audio, fuentes, User-Agent, zona horaria, WebRTC y más.",
   "icons": {
     "16": "icons/16.png",
@@ -19,9 +19,12 @@
     "browsingData",
     "webRequest",
     "alarms",
-    "contextMenus"
+    "contextMenus",
+    "userScripts"
   ],
-  "host_permissions": ["<all_urls>"],
+  "host_permissions": [
+    "<all_urls>"
+  ],
   "background": {
     "service_worker": "src/background.js",
     "type": "module"
@@ -42,52 +45,83 @@
   },
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
+      "matches": [
+        "<all_urls>"
+      ],
       "all_frames": true,
       "match_about_blank": true,
       "run_at": "document_start",
-      "js": ["src/content/bridge.js"],
+      "js": [
+        "src/content/bridge.js"
+      ],
       "world": "ISOLATED"
     },
     {
-      "matches": ["<all_urls>"],
+      "matches": [
+        "<all_urls>"
+      ],
       "all_frames": true,
       "match_about_blank": true,
       "run_at": "document_start",
-      "js": ["src/content/protect.js"],
+      "js": [
+        "src/content/protect.js"
+      ],
       "world": "MAIN"
     },
     {
-      "matches": ["http://*/*", "https://*/*"],
+      "matches": [
+        "http://*/*",
+        "https://*/*"
+      ],
       "all_frames": false,
       "run_at": "document_idle",
-      "js": ["src/content/cookies.js"],
+      "js": [
+        "src/content/cookies.js"
+      ],
       "world": "ISOLATED"
     },
     {
-      "matches": ["http://*/*", "https://*/*"],
+      "matches": [
+        "http://*/*",
+        "https://*/*"
+      ],
       "all_frames": false,
       "run_at": "document_idle",
-      "js": ["src/content/cfhelper.js"],
+      "js": [
+        "src/content/cfhelper.js"
+      ],
       "world": "ISOLATED"
     }
   ],
   "web_accessible_resources": [
     {
-      "matches": ["<all_urls>"],
-      "resources": ["src/content/protect.js"]
+      "matches": [
+        "<all_urls>"
+      ],
+      "resources": [
+        "src/content/protect.js"
+      ]
     }
   ],
   "commands": {
     "_execute_action": {
-      "suggested_key": { "default": "Ctrl+Shift+N", "mac": "Command+Shift+N" }
+      "suggested_key": {
+        "default": "Ctrl+Shift+N",
+        "mac": "Command+Shift+N"
+      }
     },
     "new-identity": {
-      "suggested_key": { "default": "Ctrl+Shift+Y", "mac": "Command+Shift+Y" },
+      "suggested_key": {
+        "default": "Ctrl+Shift+Y",
+        "mac": "Command+Shift+Y"
+      },
       "description": "Generar nueva identidad"
     },
     "panic": {
-      "suggested_key": { "default": "Ctrl+Shift+0", "mac": "Command+Shift+0" },
+      "suggested_key": {
+        "default": "Ctrl+Shift+0",
+        "mac": "Command+Shift+0"
+      },
       "description": "Modo pánico: desactivar y limpiar"
     }
   }

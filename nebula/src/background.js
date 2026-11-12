@@ -20,6 +20,8 @@ const REFERER_RULE_ID = 3001;
 const TPCOOKIES_RULE_ID = 3002;
 const STATS_KEY = 'nebula:stats';
 const FPLOG_KEY = 'nebula:fplog';
+const BOOT_STATUS_KEY = 'nebula:bootStatus';
+const BOOT_SCRIPT_ID = 'nebula-boot';
 
 // Tracking query parameters stripped from URLs (exact names; the match regex is
 // built from this same list so removal always changes the URL — no redirect loop).
@@ -244,9 +246,57 @@ function resolveProfile(settings, seed) {
   }
 }
 
+// ---- real engine version ---------------------------------------------------
+// Spoofing an older Chrome than the engine actually is (e.g. "Chrome/131" on a
+// 157 engine) is easy to catch with feature detection, so Chromium-based
+// profiles always report the real major/full version of the running engine.
+let realVersionCache = null;
+
+async function realChromeVersion() {
+  if (realVersionCache) return realVersionCache;
+  let major = '';
+  let full = '';
+  try {
+    const ua = navigator.userAgentData;
+    if (ua && ua.getHighEntropyValues) {
+      const hv = await ua.getHighEntropyValues(['fullVersionList', 'uaFullVersion']);
+      const list = hv.fullVersionList || [];
+      const chromium = list.find((b) => b.brand === 'Chromium') || list.find((b) => /Chrome/.test(b.brand));
+      if (chromium) full = chromium.version;
+      if (!full && hv.uaFullVersion) full = hv.uaFullVersion;
+    }
+  } catch {}
+  if (!full) {
+    const m = /Chrome\/(\d+)/.exec(navigator.userAgent || '');
+    if (m) full = m[1] + '.0.0.0';
+  }
+  major = (full.split('.')[0] || '').trim();
+  if (!/^\d+$/.test(major)) return null;
+  realVersionCache = { major, full };
+  return realVersionCache;
+}
+
+const CHROMIUM_BRANDS = new Set(['Chromium', 'Google Chrome', 'Microsoft Edge', 'Opera', 'Brave']);
+
+function alignVersion(profile, version) {
+  if (!profile || !version) return profile;
+  const { major, full } = version;
+  const fix = (s) => typeof s === 'string'
+    ? s.replace(/Chrome\/\d+\.0\.0\.0/g, `Chrome/${major}.0.0.0`).replace(/Edg\/\d+\.0\.0\.0/g, `Edg/${major}.0.0.0`)
+    : s;
+  profile.userAgent = fix(profile.userAgent);
+  profile.appVersion = fix(profile.appVersion);
+  const u = profile.uaData;
+  if (u && Array.isArray(u.brands)) {
+    u.brands = u.brands.map((b) => CHROMIUM_BRANDS.has(b.brand) ? { brand: b.brand, version: major } : b);
+    if (u.uaFullVersion) u.uaFullVersion = full;
+  }
+  return profile;
+}
+
 // Resolve the profile AND apply timezone source (IP) + travel-mode overrides.
 async function activeProfile(settings, seed) {
-  const profile = resolveProfile(settings, seed);
+  const profile = alignVersion(resolveProfile(settings, seed), await realChromeVersion());
   if (settings.timezoneSource === 'ip' && settings.protections.timezone) {
     const geo = await getGeo(false);
     if (geo && geo.timezone) profile.timezone = geo.timezone;
@@ -466,10 +516,61 @@ async function rebuild() {
     cfHelper: settings.cfHelper !== false
   };
   await chrome.storage.local.set({ [CONFIG_KEY]: config });
+  await syncBootScript(config);
   await updateHeaderRules(settings, profile);
   updateBadge(settings.enabled);
   await syncRotateAlarm();
   return config;
+}
+
+// ---- instant protection (user script) ---------------------------------------
+// Content scripts can only read chrome.storage asynchronously, so on their own
+// the protections switch on a moment after the page has started running — long
+// enough for a fingerprinting script in <head> to read the real values. A user
+// script can carry the config inline, so it is available synchronously at
+// document_start. Requires "Allow user scripts" for this extension (Chrome 138+:
+// extension details page; older Chromium: developer mode). Without it, the
+// bridge path below keeps working exactly as before.
+
+function bootCode(config) {
+  return `(()=>{try{const c=${JSON.stringify(config)};let h='about';` +
+    `try{h=location.hostname||(top&&top.location&&top.location.hostname)||'about'}catch(e){}` +
+    `const al=c.allowlist||[];const allowed=al.some(d=>h===d||h.endsWith('.'+d));` +
+    `const p=(!c.enabled||allowed)?{enabled:false}:{enabled:true,host:h,noise:c.noise,` +
+    `noiseStrategy:c.noiseStrategy,protections:c.protections,webrtcMode:c.webrtcMode,` +
+    `timingPrecisionMs:c.timingPrecisionMs,baseSeed:c.baseSeed,profile:c.profile,fpLog:c.fpLog};` +
+    `const s=JSON.stringify(p);` +
+    `if(window.__nebulaInstalled){window.dispatchEvent(new CustomEvent('nebula:config',{detail:s}))}` +
+    `else{Object.defineProperty(window,'__nebulaBoot',{value:s,configurable:true,writable:true,enumerable:false})}` +
+    `}catch(e){}})();`;
+}
+
+async function syncBootScript(config) {
+  let status = 'unsupported';
+  try {
+    const api = chrome.userScripts;
+    if (api && api.register) {
+      if (!config) config = (await chrome.storage.local.get(CONFIG_KEY))[CONFIG_KEY];
+      if (!config) return 'pending';
+      const script = {
+        id: BOOT_SCRIPT_ID,
+        matches: ['<all_urls>'],
+        allFrames: true,
+        runAt: 'document_start',
+        world: 'MAIN',
+        js: [{ code: bootCode(config) }, { file: 'src/content/protect.js' }]
+      };
+      const existing = await api.getScripts({ ids: [BOOT_SCRIPT_ID] });
+      if (existing.length) await api.update([script]);
+      else await api.register([script]);
+      status = 'active';
+    }
+  } catch {
+    // The API exists but the user has not allowed user scripts yet.
+    status = 'needs-permission';
+  }
+  try { await chrome.storage.local.set({ [BOOT_STATUS_KEY]: status }); } catch {}
+  return status;
 }
 
 function updateBadge(enabled) {
@@ -524,6 +625,8 @@ try {
 } catch {}
 
 chrome.runtime.onStartup.addListener(async () => {
+  // The registered user script survives restarts, but make sure it is current.
+  syncBootScript();
   // New browser session → fresh seed for per-session mode.
   await regenerateSeed();
   // Refresh IP geolocation (the exit IP may have changed since last run).
@@ -559,7 +662,9 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         const seed = await getSeed();
         const profile = await activeProfile(settings, seed);
         const geo = (await chrome.storage.local.get(GEO_KEY))[GEO_KEY] || null;
-        sendResponse({ settings, seed, profile, presets: presetList(), geo });
+        // Re-check every time the popup opens: the user may have just allowed user scripts.
+        const instant = await syncBootScript();
+        sendResponse({ settings, seed, profile, presets: presetList(), geo, instant });
         break;
       }
       case 'refreshGeo': {

@@ -143,6 +143,9 @@ function render() {
 
   applyTheme(s.theme);
 
+  // instant protection status (user script registered by the background)
+  $('instantTip').hidden = !(active && STATE.instant && STATE.instant !== 'active');
+
   // coherence validator: warn if the spoofed OS contradicts the real device
   const OS_NAME = { windows: 'Windows', mac: 'Mac', linux: 'Linux', android: 'Android', ios: 'iPhone/iPad' };
   const coh = $('coherence');
