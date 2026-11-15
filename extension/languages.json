@@ -1,0 +1,398 @@
+[
+  {
+    "code": "zh-CN",
+    "name": "Chino (China) · 中文（中国）"
+  },
+  {
+    "code": "zh-SG",
+    "name": "Chino (Singapur) · 中文（新加坡）"
+  },
+  {
+    "code": "zh-TW",
+    "name": "Chino (Taiwán) · 中文（台湾）"
+  },
+  {
+    "code": "ko-KR",
+    "name": "Coreano (Corea del Sur) · 韩语（韩国）"
+  },
+  {
+    "code": "th-TH",
+    "name": "Tailandés (Tailandia) · 泰语（泰国）"
+  },
+  {
+    "code": "ja-JP",
+    "name": "Japonés (Japón) · 日语（日本）"
+  },
+  {
+    "code": "en-US",
+    "name": "Inglés estadounidense · 美国英语"
+  },
+  {
+    "code": "en-EG",
+    "name": "Inglés (Egipto) · 英语（埃及）"
+  },
+  {
+    "code": "en-AU",
+    "name": "Inglés australiano · 澳大利亚英语"
+  },
+  {
+    "code": "en-GB",
+    "name": "Inglés británico · 英国英语"
+  },
+  {
+    "code": "en-CA",
+    "name": "Inglés canadiense · 加拿大英语"
+  },
+  {
+    "code": "en-NZ",
+    "name": "Inglés (Nueva Zelanda) · 英语（新西兰）"
+  },
+  {
+    "code": "en-IE",
+    "name": "Inglés (Irlanda) · 英语（爱尔兰）"
+  },
+  {
+    "code": "en-ZA",
+    "name": "Inglés (Sudáfrica) · 英语（南非）"
+  },
+  {
+    "code": "en-JM",
+    "name": "Inglés (Jamaica) · 英语（牙买加）"
+  },
+  {
+    "code": "en-BZ",
+    "name": "Inglés (Belice) · 英语（伯利兹）"
+  },
+  {
+    "code": "en-TT",
+    "name": "Inglés (Trinidad y Tobago) · 英语（特立尼达和多巴哥）"
+  },
+  {
+    "code": "it-CH",
+    "name": "Italiano (Suiza) · 意大利语（瑞士）"
+  },
+  {
+    "code": "ru-RU",
+    "name": "Ruso (Rusia) · 俄语（俄罗斯）"
+  },
+  {
+    "code": "ru-MD",
+    "name": "Ruso (Moldavia) · 俄语（摩尔多瓦）"
+  },
+  {
+    "code": "de-CH",
+    "name": "Alto alemán suizo · 瑞士高地德语"
+  },
+  {
+    "code": "de-AT",
+    "name": "Alemán austríaco · 奥地利德语"
+  },
+  {
+    "code": "de-LU",
+    "name": "Alemán (Luxemburgo) · 德语（卢森堡）"
+  },
+  {
+    "code": "de-LI",
+    "name": "Alemán (Liechtenstein) · 德语（列支敦士登）"
+  },
+  {
+    "code": "fr-BE",
+    "name": "Francés (Bélgica) · 法语（比利时）"
+  },
+  {
+    "code": "fr-CA",
+    "name": "Francés canadiense · 加拿大法语"
+  },
+  {
+    "code": "fr-CH",
+    "name": "Francés suizo · 瑞士法语"
+  },
+  {
+    "code": "fr-LU",
+    "name": "Francés (Luxemburgo) · 法语（卢森堡）"
+  },
+  {
+    "code": "es-AR",
+    "name": "Español (Argentina) · 西班牙语（阿根廷）"
+  },
+  {
+    "code": "es-GT",
+    "name": "Español (Guatemala) · 西班牙语（危地马拉）"
+  },
+  {
+    "code": "es-CR",
+    "name": "Español (Costa Rica) · 西班牙语（哥斯达黎加）"
+  },
+  {
+    "code": "es-PA",
+    "name": "Español (Panamá) · 西班牙语（巴拿马）"
+  },
+  {
+    "code": "es-DO",
+    "name": "Español (República Dominicana) · 西班牙语（多米尼加共和国）"
+  },
+  {
+    "code": "es-MX",
+    "name": "Español de México · 墨西哥西班牙语"
+  },
+  {
+    "code": "es-VE",
+    "name": "Español (Venezuela) · 西班牙语（委内瑞拉）"
+  },
+  {
+    "code": "es-CO",
+    "name": "Español (Colombia) · 西班牙语（哥伦比亚）"
+  },
+  {
+    "code": "es-PE",
+    "name": "Español (Perú) · 西班牙语（秘鲁）"
+  },
+  {
+    "code": "es-EC",
+    "name": "Español (Ecuador) · 西班牙语（厄瓜多尔）"
+  },
+  {
+    "code": "es-CL",
+    "name": "Español (Chile) · 西班牙语（智利）"
+  },
+  {
+    "code": "es-UY",
+    "name": "Español (Uruguay) · 西班牙语（乌拉圭）"
+  },
+  {
+    "code": "es-PY",
+    "name": "Español (Paraguay) · 西班牙语（巴拉圭）"
+  },
+  {
+    "code": "es-BO",
+    "name": "Español (Bolivia) · 西班牙语（玻利维亚）"
+  },
+  {
+    "code": "es-SV",
+    "name": "Español (El Salvador) · 西班牙语（萨尔瓦多）"
+  },
+  {
+    "code": "es-HN",
+    "name": "Español (Honduras) · 西班牙语（洪都拉斯）"
+  },
+  {
+    "code": "es-NI",
+    "name": "Español (Nicaragua) · 西班牙语（尼加拉瓜）"
+  },
+  {
+    "code": "es-PR",
+    "name": "Español (Puerto Rico) · 西班牙语（波多黎各）"
+  },
+  {
+    "code": "ar-SA",
+    "name": "Árabe (Arabia Saudí) · 阿拉伯语（沙特阿拉伯）"
+  },
+  {
+    "code": "ar-IQ",
+    "name": "Árabe (Irak) · 阿拉伯语（伊拉克）"
+  },
+  {
+    "code": "ar-EG",
+    "name": "Árabe (Egipto) · 阿拉伯语（埃及）"
+  },
+  {
+    "code": "ar-LY",
+    "name": "Árabe (Libia) · 阿拉伯语（利比亚）"
+  },
+  {
+    "code": "ar-DZ",
+    "name": "Árabe (Argelia) · 阿拉伯语（阿尔及利亚）"
+  },
+  {
+    "code": "ar-MA",
+    "name": "Árabe (Marruecos) · 阿拉伯语（摩洛哥）"
+  },
+  {
+    "code": "ar-TN",
+    "name": "Árabe (Túnez) · 阿拉伯语（突尼斯）"
+  },
+  {
+    "code": "ar-OM",
+    "name": "Árabe (Omán) · 阿拉伯语（阿曼）"
+  },
+  {
+    "code": "ar-YE",
+    "name": "Árabe (Yemen) · 阿拉伯语（也门）"
+  },
+  {
+    "code": "ar-SY",
+    "name": "Árabe (Siria) · 阿拉伯语（叙利亚）"
+  },
+  {
+    "code": "ar-JO",
+    "name": "Árabe (Jordania) · 阿拉伯语（约旦）"
+  },
+  {
+    "code": "ar-LB",
+    "name": "Árabe (Líbano) · 阿拉伯语（黎巴嫩）"
+  },
+  {
+    "code": "ar-KW",
+    "name": "Árabe (Kuwait) · 阿拉伯语（科威特）"
+  },
+  {
+    "code": "ar-AE",
+    "name": "Árabe (Emiratos Árabes Unidos) · 阿拉伯语（阿拉伯联合酋长国）"
+  },
+  {
+    "code": "ar-BH",
+    "name": "Árabe (Baréin) · 阿拉伯语（巴林）"
+  },
+  {
+    "code": "ar-QA",
+    "name": "Árabe (Catar) · 阿拉伯语（卡塔尔）"
+  },
+  {
+    "code": "pt-PT",
+    "name": "Portugués de Portugal · 欧洲葡萄牙语"
+  },
+  {
+    "code": "pt-BR",
+    "name": "Portugués de Brasil · 巴西葡萄牙语"
+  },
+  {
+    "code": "ro-MD",
+    "name": "Moldavo · 摩尔多瓦语"
+  },
+  {
+    "code": "sq-AL",
+    "name": "Albanés (Albania) · 阿尔巴尼亚语（阿尔巴尼亚）"
+  },
+  {
+    "code": "nl-NL",
+    "name": "Neerlandés (Países Bajos) · 荷兰语（荷兰）"
+  },
+  {
+    "code": "nl-BE",
+    "name": "Flamenco · 弗拉芒语"
+  },
+  {
+    "code": "gd-IE",
+    "name": "Gaélico escocés (Irlanda) · 苏格兰盖尔语（爱尔兰）"
+  },
+  {
+    "code": "is-IS",
+    "name": "Islandés (Islandia) · 冰岛语（冰岛）"
+  },
+  {
+    "code": "no-NO",
+    "name": "Noruego (Noruega) · 挪威语（挪威）"
+  },
+  {
+    "code": "sv-FI",
+    "name": "Sueco (Finlandia) · 瑞典语（芬兰）"
+  },
+  {
+    "code": "es-ES",
+    "name": "Español de España · 欧洲西班牙语"
+  },
+  {
+    "code": "es-US",
+    "name": "Español (Estados Unidos) · 西班牙语（美国）"
+  },
+  {
+    "code": "en-IN",
+    "name": "Inglés (India) · 英语（印度）"
+  },
+  {
+    "code": "fr-FR",
+    "name": "Francés (Francia) · 法语（法国）"
+  },
+  {
+    "code": "de-DE",
+    "name": "Alemán (Alemania) · 德语（德国）"
+  },
+  {
+    "code": "it-IT",
+    "name": "Italiano (Italia) · 意大利语（意大利）"
+  },
+  {
+    "code": "pl-PL",
+    "name": "Polaco (Polonia) · 波兰语（波兰）"
+  },
+  {
+    "code": "tr-TR",
+    "name": "Turco (Turquía) · 土耳其语（土耳其）"
+  },
+  {
+    "code": "uk-UA",
+    "name": "Ucraniano (Ucrania) · 乌克兰语（乌克兰）"
+  },
+  {
+    "code": "vi-VN",
+    "name": "Vietnamita (Vietnam) · 越南语（越南）"
+  },
+  {
+    "code": "id-ID",
+    "name": "Indonesio (Indonesia) · 印度尼西亚语（印度尼西亚）"
+  },
+  {
+    "code": "ms-MY",
+    "name": "Malayo (Malasia) · 马来语（马来西亚）"
+  },
+  {
+    "code": "hi-IN",
+    "name": "Hindi (India) · 印地语（印度）"
+  },
+  {
+    "code": "he-IL",
+    "name": "Hebreo (Israel) · 希伯来语（以色列）"
+  },
+  {
+    "code": "el-GR",
+    "name": "Griego (Grecia) · 希腊语（希腊）"
+  },
+  {
+    "code": "cs-CZ",
+    "name": "Checo (Chequia) · 捷克语（捷克）"
+  },
+  {
+    "code": "hu-HU",
+    "name": "Húngaro (Hungría) · 匈牙利语（匈牙利）"
+  },
+  {
+    "code": "da-DK",
+    "name": "Danés (Dinamarca) · 丹麦语（丹麦）"
+  },
+  {
+    "code": "fi-FI",
+    "name": "Finés (Finlandia) · 芬兰语（芬兰）"
+  },
+  {
+    "code": "nb-NO",
+    "name": "Noruego bokmal (Noruega) · 书面挪威语（挪威）"
+  },
+  {
+    "code": "sv-SE",
+    "name": "Sueco (Suecia) · 瑞典语（瑞典）"
+  },
+  {
+    "code": "fil-PH",
+    "name": "Filipino (Filipinas) · 菲律宾语（菲律宾）"
+  },
+  {
+    "code": "bn-BD",
+    "name": "Bengalí (Bangladés) · 孟加拉语（孟加拉国）"
+  },
+  {
+    "code": "fa-IR",
+    "name": "Persa (Irán) · 波斯语（伊朗）"
+  },
+  {
+    "code": "ca-ES",
+    "name": "Catalán (España) · 加泰罗尼亚语（西班牙）"
+  },
+  {
+    "code": "eu-ES",
+    "name": "Euskera (España) · 巴斯克语（西班牙）"
+  },
+  {
+    "code": "gl-ES",
+    "name": "Gallego (España) · 加利西亚语（西班牙）"
+  }
+]

@@ -1,0 +1,53 @@
+{
+  "manifest_version": 3,
+  "version": "9.0.5.1",
+  "name": "CthulhuJs (Anti-Fingerprint) · Mejorada",
+  "description": "Your browser, your rules — your digital fingerprint, in your control.",
+  "homepage_url": "https://github.com/shawn-li-zh/CthulhuJs",
+  "default_locale": "en",
+  "permissions": [
+    "storage",
+    "tabs",
+    "browsingData",
+    "activeTab",
+    "background",
+    "scripting",
+    "userScripts",
+    "webNavigation",
+    "notifications",
+    "declarativeNetRequest"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "icons": {
+    "16": "assets/logo.png",
+    "32": "assets/logo.png",
+    "48": "assets/logo.png",
+    "128": "assets/logo.png"
+  },
+  "content_scripts": [],
+  "background": {
+    "service_worker": "background/background.js"
+  },
+  "action": {
+    "default_icon": "assets/logo.png",
+    "default_popup": "index.html"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "img/*",
+        "icon/*",
+        "js/*"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
+    }
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'; frame-src 'self'; child-src 'self';"
+  },
+  "version_name": "9.0.5 mejorada"
+}

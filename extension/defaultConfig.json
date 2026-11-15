@@ -1,0 +1,18 @@
+{
+  "safeMode": true,
+  "webglSafeMode": false,
+  "functionTrace": false,
+  "disableWorker": false,
+  "antiDebugger": false,
+  "randomSeed": 0,
+  "option": "随机生成",
+  "deviceType": "",
+  "os": "",
+  "fixedUA": "",
+  "fixedLanguage": "",
+  "fixedTimezone": "",
+  "ipLookup": true,
+  "realistic": true,
+  "perSite": false,
+  "notify": true
+}
