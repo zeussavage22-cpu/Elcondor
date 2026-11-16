@@ -810,6 +810,16 @@ const lt = { class: "col col-between" },
             enable: !0,
           },
           {
+            statusName: "functionTrace",
+            label: "hszz",
+            description: "hszzSM",
+            switch() {
+              let a = !t.functionTrace;
+              return ((t.functionTrace = a), j("functionTrace", a), !1);
+            },
+            enable: !0,
+          },
+          {
             statusName: "antiDebugger",
             label: "fts",
             description: "ftsSM",

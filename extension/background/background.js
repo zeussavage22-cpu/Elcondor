@@ -2349,6 +2349,7 @@ async function Ne(e) {
       (i.webglSafeMode = await G("webglSafeMode", !1)),
       (i.disableWorker = await G("disableWorker")),
       (i.antiDebugger = await G("antiDebugger")),
+      (i.functionTrace = await G("functionTrace", !1)),
       (i.deviceType = await S("deviceType")),
       (i.os = await S("os")),
       (i.isTemp = !0),

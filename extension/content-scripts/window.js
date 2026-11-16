@@ -284,21 +284,46 @@
       logs: new Set(),
       proxies: [],
       cheaters: [],
-      addDebugger: (n, r) => {
-        let i = "DEBUG:" + n;
-        e.sessionStorage ? A(f, e.sessionStorage, [i, r]) : (t[i] = r);
+      // [MEJORA] Antes se leía sessionStorage en CADA acceso a propiedades
+      // como navigator.userAgent, sin try/catch. En iframes con sandbox o con
+      // cookies bloqueadas lanzaba error y rompía los scripts de la página.
+      hasDbg: (() => {
+        try {
+          const ss = e.sessionStorage;
+          for (let i = 0; i < ss.length; i++)
+            if ((ss.key(i) || "").startsWith("DEBUG:")) return !0;
+        } catch (x) {}
+        return !1;
+      })(),
+      addDebugger: (r, i) => {
+        let o = "DEBUG:" + r;
+        n.hasDbg = !0;
+        try {
+          e.sessionStorage ? A(f, e.sessionStorage, [o, i]) : (t[o] = i);
+        } catch (x) {
+          t[o] = i;
+        }
       },
-      removeDebugger: (n) => {
-        let r = "DEBUG:" + n;
-        e.sessionStorage ? A(p, e.sessionStorage, [r]) : delete t[r];
+      removeDebugger: (r) => {
+        let i = "DEBUG:" + r;
+        try {
+          e.sessionStorage ? A(p, e.sessionStorage, [i]) : delete t[i];
+        } catch (x) {
+          delete t[i];
+        }
       },
-      isDebugger: (t) => {
-        let n = "DEBUG:" + t;
-        if (!e.sessionStorage) return !1;
-        let r = A(h, e.sessionStorage, [n]);
-        if (!r) return !1;
-        let i = r / 1 || 0;
-        return i > 0 && (A(f, e.sessionStorage, [n, i - 1 + ""]), !0);
+      isDebugger: (r) => {
+        if (!n.hasDbg) return !1;
+        let i = "DEBUG:" + r;
+        try {
+          if (!e.sessionStorage) return !1;
+          let o = A(h, e.sessionStorage, [i]);
+          if (!o) return !1;
+          let s = o / 1 || 0;
+          return s > 0 && (A(f, e.sessionStorage, [i, s - 1 + ""]), !0);
+        } catch (x) {
+          return !1;
+        }
       },
     };
     return ((e[l.attach] = n), n);
@@ -470,7 +495,12 @@
       o = Object.getOwnPropertyDescriptor(r.prototype, "contentWindow").get;
     function s(e, r) {
       if ("IFRAME" === e.tagName) {
-        if (e.src && e.src.toString().startsWith("javascript:")) {
+        // [MEJORA] Reescribir el src solo una vez (cada reescritura recarga el iframe).
+        if (
+          e.src &&
+          e.src.toString().startsWith("javascript:") &&
+          !e.src.toString().includes(l.SCOPE_CHEATER)
+        ) {
           let t = `window.${l.SCOPE_BROWSER}=window.top.${l.SCOPE_BROWSER};window.${l.SCOPE_CHEATER}=window.top.${l.SCOPE_CHEATER};window.${l.SCOPE_CHEATER}(self,window.${l.SCOPE_BROWSER},'direct js');`;
           e.src = `javascript:${t};${e.src.toString().substring(11)};`;
         }
@@ -517,7 +547,8 @@
           if (o[0] instanceof u || o[0] instanceof DocumentFragment) {
             s(o[0], "appendChild");
             try {
-              let e = o[0].querySelectorAll("iframe");
+              // [MEJORA] No buscar iframes en nodos sin hijos (cada appendChild de la página pasaba por aquí).
+              let e = o[0].firstElementChild ? o[0].querySelectorAll("iframe") : [];
               for (let t of e) s(t, "appendChild");
             } catch (e) {
               throw e;
@@ -819,36 +850,60 @@
       !0
     );
   }
+  // [MEJORA] Antes recorría TODO el mensaje recibido de un Worker (incluidos
+  // arrays tipados de millones de elementos, y los arrays dos veces por
+  // nivel), añadiendo una propiedad "__lock" a cada objeto. Con datos grandes
+  // la página se congelaba. Ahora: solo objetos/arrays normales, sin mutar
+  // la estructura, con límite de profundidad y de nodos.
   function V(e, t) {
-    null != e &&
-      "object" == typeof e &&
-      (function (e, t = []) {
-        if (!(0 > 10)) {
-          if (e instanceof Array) for (let n of e) V(n, t);
-          if (!e.__lock) {
-            e.__lock = 1;
-            for (let n of Object.keys(e)) {
-              for (let r of t) {
-                let t = typeof r.check,
-                  i = !1;
-                if (
-                  ("function" === t
-                    ? (i = r.check(n, e[n]))
-                    : "string" === t
-                      ? (i = n === r.check)
-                      : r.check instanceof RegExp && (i = !!n.match(r.check)),
-                  i)
-                ) {
-                  e[n] = r.handle(n, e[n]);
-                  break;
-                }
-              }
-              V(e[n], t);
-            }
-            delete e.__lock;
-          }
+    if (null == e || "object" != typeof e || !t || !t.length) return;
+    const seen = new WeakSet();
+    let budget = 20000;
+    const plain = (o) => {
+      if (ArrayBuffer.isView(o) || o instanceof ArrayBuffer) return !1;
+      if (typeof SharedArrayBuffer != "undefined" && o instanceof SharedArrayBuffer) return !1;
+      const pr = Object.getPrototypeOf(o);
+      return pr === null || pr === Object.prototype || Array.isArray(o);
+    };
+    (function walk(o, depth) {
+      if (depth > 8 || budget <= 0 || seen.has(o) || !plain(o)) return;
+      seen.add(o);
+      let keys;
+      try {
+        keys = Object.keys(o);
+      } catch (x) {
+        return;
+      }
+      for (const n of keys) {
+        if (--budget <= 0) return;
+        let v;
+        try {
+          v = o[n];
+        } catch (x) {
+          continue;
         }
-      })(e, t);
+        if (!Array.isArray(o))
+          for (const r of t) {
+            const ty = typeof r.check;
+            let hit = !1;
+            try {
+              hit =
+                "function" === ty
+                  ? r.check(n, v)
+                  : "string" === ty
+                    ? n === r.check
+                    : r.check instanceof RegExp && !!n.match(r.check);
+            } catch (x) {}
+            if (hit) {
+              try {
+                o[n] = v = r.handle(n, v);
+              } catch (x) {}
+              break;
+            }
+          }
+        v && "object" == typeof v && walk(v, depth + 1);
+      }
+    })(e, 0);
   }
   function F(e, t) {
     const n = e.EventTarget,
@@ -6893,10 +6948,13 @@
                     : (e.appVersion = e.userAgent.replace("Mozilla/", ""))
                   : (e.uaInfo = void 0);
                 const n = e.enables || {};
+                // [MEJORA] Antes quedaba SIEMPRE activado (por comparar con
+                // undefined), envolviendo todos los métodos de Array de la
+                // página. Ahora solo se activa si el usuario lo pide.
                 e.functionTrace =
-                  e.functionTrace ||
-                  void 0 === n.functionTrace ||
-                  n.functionTrace;
+                  !!e.functionTrace ||
+                  !0 === n.functionTrace ||
+                  1 === n.functionTrace;
                 let r = new lo();
                 if (
                   ((e.start = r.getTime()),

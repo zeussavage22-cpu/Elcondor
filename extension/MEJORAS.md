@@ -26,6 +26,16 @@ el código está marcado con el comentario `[MEJORA]`.
 | 14 | Datos de GPU para Linux mezclados con nombres de GPU de Windows (Direct3D). | Separados: cada sistema solo usa sus propias GPU. |
 | 15 | Si `os.version` no existía, la preparación del perfil en la página podía fallar (`undefined.split`). | Protegido. |
 
+## Páginas que se quedaban cargando (v9.0.5.2)
+
+| # | Causa | Solución |
+|---|---|---|
+| 16 | **Congelaba la página.** Cada mensaje de un Web Worker se recorría entero de forma recursiva, y los arrays se recorrían dos veces por nivel (coste exponencial). Además se añadía una propiedad `__lock` a cada objeto. Con datos anidados la página dejaba de responder. *Prueba: antes >25 s congelada; ahora 8 ms.* | Recorrido sin modificar los objetos, que ignora los datos binarios, con límite de profundidad (8) y de elementos (20 000). |
+| 17 | El «Rastreo de funciones» quedaba **siempre activado** por un error (`void 0 === n.functionTrace`), aunque la interfaz lo describe como opcional y muy pesado. Envolvía `map`, `filter`, `slice`, `join`… de toda la página. | Solo se activa si lo enciendes. El interruptor ahora está visible en Ajustes. *Prueba: operaciones con listas el doble de rápidas.* |
+| 18 | Se leía `sessionStorage` en cada acceso a `navigator.*`, sin `try/catch`. En iframes con sandbox o con cookies bloqueadas lanzaba error y rompía los scripts de la página. | Se consulta una sola vez y está protegido. |
+| 19 | Los iframes `javascript:` se reescribían (y recargaban) cada vez que la página buscaba elementos. | Se reescriben una sola vez. |
+| 20 | Cada `appendChild` de la página buscaba iframes dentro del nodo, aunque no tuviera hijos. | Solo se busca si el nodo tiene hijos. |
+
 ## Privacidad
 
 - **Nueva opción "Consultar IP en línea"** (activada por defecto, como en la
