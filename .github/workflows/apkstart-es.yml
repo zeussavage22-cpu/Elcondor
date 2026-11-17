@@ -1,0 +1,56 @@
+name: Instalador ApkStart en español
+
+on:
+  push:
+    paths:
+      - 'apkstart-es/**'
+      - '.github/workflows/apkstart-es.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalar herramientas
+        run: sudo apt-get update && sudo apt-get install -y nsis p7zip-full
+
+      - name: Descargar el instalador original
+        run: |
+          curl -fL --retry 5 -o original.exe \
+            https://github.com/RoutineMiku/apkstart/releases/download/v0.5.8/ApkStart-0.5.8-Setup.exe
+          ls -la original.exe
+
+      - name: Preparar contenido
+        working-directory: apkstart-es
+        run: |
+          mkdir -p payload/app plugins/x86-unicode x
+          7z x -y ../original.exe -ox '$PLUGINSDIR/app-64.7z' '$PLUGINSDIR/nsis7z.dll' 'resources/runtime/emulator/resources/default.mp4'
+          mv 'x/$PLUGINSDIR/app-64.7z' payload/app-64.7z
+          mv 'x/$PLUGINSDIR/nsis7z.dll' plugins/x86-unicode/nsis7z.dll
+          mv x/resources/runtime/emulator/resources/default.mp4 payload/default.mp4
+          rm -f ../original.exe
+          unzip -q app-es.zip -d payload/app
+
+      - name: Compilar el instalador
+        working-directory: apkstart-es
+        run: |
+          makensis -V2 installer.nsi
+          ls -la ApkStart-0.5.8-Setup-es.exe
+          sha256sum ApkStart-0.5.8-Setup-es.exe | tee sha256.txt
+
+      - name: Publicar Release
+        working-directory: apkstart-es
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG=apkstart-0.5.8-es
+          gh release delete "$TAG" --yes --cleanup-tag 2>/dev/null || true
+          gh release create "$TAG" ApkStart-0.5.8-Setup-es.exe \
+            --target "$GITHUB_SHA" \
+            --title "ApkStart 0.5.8 en español" \
+            --notes "Instalador completo de ApkStart 0.5.8 (https://github.com/RoutineMiku/apkstart, licencia MIT) con la interfaz traducida al español. SHA-256: $(cut -d' ' -f1 sha256.txt)"
