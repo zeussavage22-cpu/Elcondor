@@ -21,6 +21,11 @@ import kotlin.system.exitProcess
  */
 class PrivilegedService(base: Context) : IDarkNetService.Stub() {
 
+    init {
+        runCatching { HiddenApiBypass.addHiddenApiExemptions("L") }
+            .onFailure { Log.e("DarkNet", "hidden API exemption failed", it) }
+    }
+
     private val context: Context = shellContext(base)
     private val net by lazy { SystemNet(context) }
     private val lock = Any()
@@ -37,8 +42,6 @@ class PrivilegedService(base: Context) : IDarkNetService.Stub() {
     private var usb = false
 
     init {
-        runCatching { HiddenApiBypass.addHiddenApiExemptions("L") }
-            .onFailure { ServiceLog.error("hidden API exemption failed", it) }
         ServiceLog.info(
             "service up: ${Build.MANUFACTURER} ${Build.MODEL}, Android ${Build.VERSION.RELEASE} " +
                 "(SDK ${Build.VERSION.SDK_INT}), DarkNet ${BuildConfig.VERSION_NAME}, ${engine.Engine.Version}",
@@ -184,10 +187,42 @@ class PrivilegedService(base: Context) : IDarkNetService.Stub() {
     }.getOrDefault(0L to 0L)
 
     private companion object {
-        /** A context attributed to the shell package, so system services accept our uid. */
-        fun shellContext(base: Context): Context =
-            runCatching { base.createPackageContext("com.android.shell", 0) }
-                .onFailure { Log.w("DarkNet", "no shell context: ${it.message}") }
-                .getOrDefault(base)
+        const val SHELL_UID = 2000
+        const val SHELL_PACKAGE = "com.android.shell"
+
+        /**
+         * Shizuku gives this process a context named after DarkNet's package, but the
+         * process runs as the shell user. System services check that the calling package
+         * belongs to the calling uid, so present the shell package instead: rewrite the
+         * attribution of the underlying ContextImpl before any manager is created.
+         */
+        fun shellContext(base: Context): Context {
+            var impl: Context = base
+            while (impl is android.content.ContextWrapper && impl.baseContext != null) impl = impl.baseContext
+            runCatching {
+                val source = android.content.AttributionSource.Builder(SHELL_UID)
+                    .setPackageName(SHELL_PACKAGE)
+                    .build()
+                val field = findField(impl.javaClass, "mAttributionSource")
+                field.isAccessible = true
+                field.set(impl, source)
+            }.onFailure { ServiceLog.error("could not set shell attribution", it) }
+            runCatching {
+                val field = findField(impl.javaClass, "mBasePackageName")
+                field.isAccessible = true
+                field.set(impl, SHELL_PACKAGE)
+            }
+            ServiceLog.info("acting as ${impl.opPackageName} (uid ${android.os.Process.myUid()})")
+            return impl
+        }
+
+        private fun findField(cls: Class<*>, name: String): java.lang.reflect.Field {
+            var c: Class<*>? = cls
+            while (c != null) {
+                runCatching { return c!!.getDeclaredField(name) }
+                c = c.superclass
+            }
+            throw NoSuchFieldException(name)
+        }
     }
 }

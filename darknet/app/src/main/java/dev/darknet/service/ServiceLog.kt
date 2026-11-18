@@ -15,8 +15,12 @@ internal object ServiceLog {
 
     fun info(message: String) = add("I", message)
     fun warn(message: String) = add("W", message)
-    fun error(message: String, failure: Throwable? = null) =
-        add("E", if (failure == null) message else "$message: ${failure.javaClass.simpleName}: ${failure.message}")
+    fun error(message: String, failure: Throwable? = null) {
+        if (failure == null) return add("E", message)
+        add("E", "$message: ${failure.javaClass.simpleName}: ${failure.message}")
+        // Where it happened, so a report from a phone points at the failing call.
+        failure.stackTrace.take(6).forEach { add("E", "    at $it") }
+    }
 
     @Synchronized
     private fun add(level: String, message: String) {
