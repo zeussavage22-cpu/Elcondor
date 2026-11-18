@@ -1,0 +1,101 @@
+# Builds DarkNet: tests the engine (unit tests + network lab), builds the
+# Android app and publishes the APK as a release.
+name: DarkNet
+
+on:
+  push:
+    paths: ['darknet/**', '.github/workflows/darknet.yml']
+  workflow_dispatch:
+
+concurrency:
+  group: darknet-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+defaults:
+  run:
+    working-directory: darknet
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.26.3'
+          cache-dependency-path: darknet/engine/go.sum
+
+      - name: Engine unit tests
+        working-directory: darknet/engine
+        run: go vet ./... && go test ./...
+
+      - name: Engine network lab
+        working-directory: darknet/engine
+        run: |
+          sudo apt-get install -y iproute2 iptables curl >/dev/null
+          go build -o /tmp/labengine ./cmd/labengine
+          sudo ../lab/ci.sh /tmp/labengine
+
+      - uses: actions/setup-java@v5
+        with:
+          java-version: '17'
+          distribution: temurin
+
+      - uses: android-actions/setup-android@v4
+
+      - name: NDK and gomobile
+        run: |
+          sdkmanager --install "ndk;27.0.12077973"
+          go install golang.org/x/mobile/cmd/gomobile@latest
+          gomobile init
+
+      - name: Build engine AAR
+        working-directory: darknet/engine
+        env:
+          ANDROID_NDK_HOME: ${{ env.ANDROID_SDK_ROOT }}/ndk/27.0.12077973
+        run: |
+          go get golang.org/x/mobile/bind
+          mkdir -p ../app/libs
+          gomobile bind -target=android/arm64 -androidapi 33 -o ../app/libs/engine.aar .
+
+      - uses: gradle/actions/setup-gradle@v6
+
+      - name: Signing key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.DARKNET_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.DARKNET_KEYSTORE_PASSWORD }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 -d > release.jks
+            PASS=$KEYSTORE_PASSWORD
+          else
+            echo "::warning::No signing secrets: using a temporary key for this build."
+            PASS=$(openssl rand -hex 16)
+            keytool -genkeypair -keystore release.jks -storetype PKCS12 -alias darknet -keyalg RSA \
+              -keysize 2048 -validity 10000 -storepass "$PASS" -keypass "$PASS" -dname "CN=DarkNet"
+          fi
+          printf 'storeFile=release.jks\nstorePassword=%s\nkeyAlias=darknet\nkeyPassword=%s\n' "$PASS" "$PASS" > keystore.properties
+
+      - name: App unit tests and APK
+        run: |
+          chmod +x gradlew
+          ./gradlew testDebugUnitTest assembleRelease --no-daemon
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp app/build/outputs/apk/release/app-release.apk darknet.apk
+          TAG="darknet-${{ github.run_number }}"
+          gh release create "$TAG" darknet.apk --repo "${{ github.repository }}" \
+            --target "${{ github.sha }}" --title "DarkNet (compilación ${{ github.run_number }})" \
+            --notes "APK de DarkNet compilado desde ${{ github.ref_name }}. Motor probado en el laboratorio de red antes de compilar." \
+            --prerelease
+
+      - name: Clean up signing material
+        if: always()
+        run: rm -f release.jks keystore.properties
