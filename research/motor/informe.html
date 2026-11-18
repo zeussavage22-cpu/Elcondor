@@ -1,0 +1,222 @@
+<title>Motor Cóndor</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one readable column (research memo) with wide tables in scroll boxes and a few bar charts. */
+:root {
+  --bg: #F7F6FC; --surface: #FFFFFF; --fg: #17152B; --muted: #5C5978; --line: #E2DFF0;
+  --accent: #5B47E8; --accent-soft: #ECE8FF; --old: #9A97B3; --good: #0F7B55; --warn: #A45A00; --bad: #B4232A;
+  --display: "Space Grotesk", "Segoe UI", system-ui, sans-serif;
+  --body: "Inter", system-ui, -apple-system, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0B0A16; --surface: #14132A; --fg: #F1EFFF; --muted: #A4A1C6; --line: #26244A;
+  --accent: #A99BFF; --accent-soft: #221E4A; --old: #5E5B80; --good: #4FD3A0; --warn: #F2B35B; --bad: #FF7B7F; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0B0A16; --surface: #14132A; --fg: #F1EFFF; --muted: #A4A1C6; --line: #26244A;
+  --accent: #A99BFF; --accent-soft: #221E4A; --old: #5E5B80; --good: #4FD3A0; --warn: #F2B35B; --bad: #FF7B7F; color-scheme: dark }
+body { background: var(--bg); color: var(--fg); font: 16px/1.6 var(--body); }
+.wrap { max-width: 860px; margin: 0 auto; padding-block: 40px 80px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex; flex-direction: column; gap: 28px; }
+h1, h2, h3 { font-family: var(--display); text-wrap: balance; line-height: 1.2; margin: 0; }
+h1 { font-size: clamp(2rem, 5vw, 2.8rem); letter-spacing: -0.02em; }
+h2 { font-size: 1.55rem; padding-top: 12px; border-top: 1px solid var(--line); }
+h3 { font-size: 1.1rem; }
+p, ul, ol { margin: 0; max-width: 68ch; }
+section { display: flex; flex-direction: column; gap: 14px; }
+.eyebrow { font: 600 12px var(--body); letter-spacing: .1em; text-transform: uppercase; color: var(--accent); }
+.lede { font-size: 1.12rem; color: var(--muted); }
+.verdict { background: var(--accent-soft); border-radius: 16px; padding: 18px 20px; display: flex; flex-direction: column; gap: 8px; }
+.verdict strong { font-family: var(--display); font-size: 1.15rem; }
+code, .mono { font-family: var(--mono); font-size: .88em; }
+.tbl { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: .95rem; }
+th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font: 600 12px var(--body); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+tr:last-child td { border-bottom: 0; }
+td.num { font-variant-numeric: tabular-nums; font-family: var(--mono); white-space: nowrap; }
+.win { color: var(--good); font-weight: 600; }
+.lose { color: var(--bad); font-weight: 600; }
+.chart { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.chart h3 { font-size: 1rem; }
+.row { display: grid; grid-template-columns: minmax(110px, 30%) 1fr; gap: 10px; align-items: center; }
+.row .lbl { font-size: .88rem; color: var(--muted); }
+.bars { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.bar { height: 14px; border-radius: 4px; display: flex; align-items: center; }
+.bar span { font: 600 12px var(--mono); margin-left: calc(100% + 8px); white-space: nowrap; color: var(--fg); }
+.bar.old { background: var(--old); }
+.bar.new { background: var(--accent); }
+.legend { display: flex; gap: 16px; font-size: .85rem; color: var(--muted); flex-wrap: wrap; }
+.legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -1px; margin-right: 6px; }
+.flow { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: .9rem; }
+.flow .node { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; }
+.flow .node.hl { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+.flow .arr { color: var(--muted); }
+.risk { display: grid; grid-template-columns: 1fr; gap: 10px; }
+.risk div { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; }
+.tag { font: 600 11px var(--body); letter-spacing: .06em; text-transform: uppercase; }
+.tag.h { color: var(--bad); } .tag.m { color: var(--warn); } .tag.l { color: var(--good); }
+ol.phases { display: flex; flex-direction: column; gap: 10px; padding-left: 20px; }
+.small { font-size: .85rem; color: var(--muted); }
+a { color: var(--accent); }
+a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.sources { font-size: .85rem; display: flex; flex-direction: column; gap: 4px; padding-left: 18px; }
+@media (min-width: 720px) { .risk { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+</style>
+
+<div class="wrap">
+  <header style="display:flex;flex-direction:column;gap:12px">
+    <span class="eyebrow">Investigación técnica · noviembre 2026</span>
+    <h1>Un motor nuevo para compartir internet en Android</h1>
+    <p class="lede">Qué existe, qué permite Android, un prototipo real construido y medido, y cómo haría yo la app nueva desde cero.</p>
+  </header>
+
+  <div class="verdict">
+    <strong>Veredicto: sí se puede, y el resultado es muy bueno en laboratorio.</strong>
+    <p>Construí un motor nuevo de tipo <b>“stack del sistema”</b>: en vez de procesar TCP dentro de la app, deja que lo haga el kernel de Android. En un laboratorio que reproduce el camino del hotspot fue entre <b>1,5× y 2,8× más rápido</b>, gastó <b>3× menos procesador</b> y, con pérdida de paquetes como la de un Wi-Fi real, pasó de <b>8 a 2688 Mbit/s</b> donde el motor actual se desploma. Lo que falta saber es si tu teléfono permite ese truco; eso solo se comprueba en un dispositivo real, y propongo empezar por ahí.</p>
+  </div>
+
+  <section>
+    <h2>1. Cómo funciona hoy</h2>
+    <p>El hotspot de Android normalmente envía el tráfico de los dispositivos conectados por los datos móviles, y la operadora puede contarlo como “hotspot”. El truco que usa Shizzi (y que tendría la app nueva) tiene tres piezas:</p>
+    <div class="flow" role="img" aria-label="Camino del tráfico: dispositivo, hotspot, túnel de prueba, motor, internet">
+      <span class="node">Dispositivo conectado</span><span class="arr">→</span>
+      <span class="node">Hotspot (NAT de Android)</span><span class="arr">→</span>
+      <span class="node">Túnel “red de prueba”</span><span class="arr">→</span>
+      <span class="node hl">Motor</span><span class="arr">→</span>
+      <span class="node">Conexiones normales del teléfono → internet</span>
+    </div>
+    <ol>
+      <li><b>Shizuku</b> da a la app permisos de sistema (los del usuario <span class="mono">shell</span>), sin root.</li>
+      <li>Con ellos se crea una <b>red de prueba</b> (<span class="mono">TestNetworkManager</span>) con un túnel TUN, y se le pide al hotspot que la use como salida (<span class="mono">setPreferTestNetworks</span>). Funciona sin más en Android 13+.</li>
+      <li>El <b>motor</b> lee cada paquete del túnel y lo vuelve a enviar a internet con conexiones propias del teléfono. Para la red, ese tráfico es del teléfono, no del hotspot.</li>
+    </ol>
+    <p>El motor actual usa <b>gVisor</b>, la pila TCP/IP en Go de Google: recompone cada conexión dentro de la app y la reenvía. Es robusto, pero todo el TCP corre en la app.</p>
+  </section>
+
+  <section>
+    <h2>2. Qué alternativas existen</h2>
+    <div class="tbl"><table>
+      <thead><tr><th>Técnica</th><th>Quién la usa</th><th>Ventaja</th><th>Problema</th></tr></thead>
+      <tbody>
+        <tr><td><b>Pila en la app: gVisor</b> (actual)</td><td>Shizzi, tun2socks en Go, Tailscale</td><td>Portable, no depende del kernel</td><td>Más CPU; recupera mal las pérdidas (medido abajo)</td></tr>
+        <tr><td><b>Pila en la app: lwIP</b></td><td>hev-socks5-tunnel (C)</td><td>Muy poca CPU y memoria</td><td>Escrito en C, TCP más simple; no hay cifras publicadas comparables</td></tr>
+        <tr><td><b>Pila en la app: smoltcp</b></td><td>proyectos en Rust</td><td>Seguro y ligero</td><td>Usuarios reportan peor rendimiento que gVisor</td></tr>
+        <tr><td><b>Stack del sistema</b> (reescribir paquetes hacia el TCP del kernel)</td><td>sing-box / sing-tun, Clash/mihomo</td><td>El TCP del kernel: rápido, maduro, copia sin pasar por la app (<span class="mono">splice</span>)</td><td>Depende de cómo cada sistema enruta; hay fallos conocidos en kernels nuevos</td></tr>
+        <tr><td><b>GSO/GRO en el túnel</b></td><td>wireguard-go, Tailscale</td><td>Procesa paquetes en lotes</td><td>Requiere crear el túnel con <span class="mono">IFF_VNET_HDR</span>; Android crea el de prueba sin eso, así que no aplica</td></tr>
+        <tr><td><b>VPN Hotspot</b> (Mygod)</td><td>App de código abierto</td><td>Enrutamiento por kernel</td><td>Necesita root</td></tr>
+        <tr><td><b>TetherFi</b></td><td>App de código abierto, sin root</td><td>No necesita Shizuku</td><td>Cada dispositivo debe configurar un proxy a mano; no es transparente</td></tr>
+      </tbody>
+    </table></div>
+    <p>La opción con más potencial sin root es el <b>stack del sistema</b>, combinado con lo que ya funciona (Shizuku + red de prueba).</p>
+  </section>
+
+  <section>
+    <h2>3. El prototipo y el laboratorio</h2>
+    <p>Escribí desde cero un motor “stack del sistema” en Go (unas 350 líneas, IPv4). Por cada paquete del túnel:</p>
+    <ul>
+      <li>Reescribe origen y destino para que la conexión vaya a un <b>servidor local</b> del motor y lo devuelve al túnel; el <b>kernel</b> completa la conexión TCP.</li>
+      <li>Al aceptarla, una tabla recuerda el destino real; el motor abre una conexión normal hacia él y une ambas con <span class="mono">splice</span>, sin copiar datos por la app.</li>
+      <li>Las respuestas se reescriben al revés. Las sumas de comprobación se ajustan de forma incremental (RFC 1624). UDP se reenvía por flujo.</li>
+      <li>Cuatro hilos de trabajo, cada conexión siempre en el mismo hilo para no desordenar paquetes.</li>
+    </ul>
+    <p>El laboratorio reproduce el camino de Android con redes aisladas de Linux: un cliente del hotspot, un “teléfono” con NAT y enrutamiento hacia el túnel (como hace el tethering de Android) y un servidor de internet. Ambos motores se probaron en las mismas condiciones, con iperf3, descargas HTTP y verificación SHA-256.</p>
+  </section>
+
+  <section>
+    <h2>4. Resultados</h2>
+    <div class="legend"><span><i style="background:var(--old)"></i>Motor actual (gVisor, ya afinado)</span><span><i style="background:var(--accent)"></i>Motor nuevo (stack del sistema)</span></div>
+
+    <div class="chart" role="img" aria-label="Velocidad en Mbit/s: bajada 1 conexión 780 contra 2181; bajada 8 conexiones 2041 contra 3385; subida 1976 contra 3653">
+      <h3>Velocidad sin pérdidas (Mbit/s, más es mejor)</h3>
+      <div class="row"><span class="lbl">Bajada, 1 conexión</span><div class="bars"><div class="bar old" style="width:calc(780/3653*78%)"><span>780</span></div><div class="bar new" style="width:calc(2181/3653*78%)"><span>2181</span></div></div></div>
+      <div class="row"><span class="lbl">Bajada, 8 conexiones</span><div class="bars"><div class="bar old" style="width:calc(2041/3653*78%)"><span>2041</span></div><div class="bar new" style="width:calc(3385/3653*78%)"><span>3385</span></div></div></div>
+      <div class="row"><span class="lbl">Subida, 1 conexión</span><div class="bars"><div class="bar old" style="width:calc(1976/3653*78%)"><span>1976</span></div><div class="bar new" style="width:calc(3653/3653*78%)"><span>3653</span></div></div></div>
+    </div>
+
+    <div class="tbl"><table>
+      <thead><tr><th>Prueba</th><th>Actual</th><th>Nuevo</th><th>Diferencia</th></tr></thead>
+      <tbody>
+        <tr><td>Bajada con 0,5 % de pérdida en el Wi-Fi</td><td class="num">289 Mbit/s</td><td class="num">2927 Mbit/s</td><td class="win">×10</td></tr>
+        <tr><td>Bajada con 2 % de pérdida en el Wi-Fi</td><td class="num">7,9 Mbit/s</td><td class="num">2688 Mbit/s</td><td class="win">×340</td></tr>
+        <tr><td>CPU por Mbit/s (bajada, 1 conexión)</td><td class="num">1,13</td><td class="num">0,38</td><td class="win">3× menos</td></tr>
+        <tr><td>UDP a 400 Mbit/s</td><td class="num">pérdida 0,20 %</td><td class="num">pérdida 0,18 %</td><td>igual</td></tr>
+        <tr><td>Descarga de 200 MB, verificada</td><td class="num">1,32 s, íntegra</td><td class="num">0,69 s, íntegra</td><td class="win">1,9× más rápida</td></tr>
+        <tr><td>1000 peticiones, 100 a la vez</td><td class="num">1000/1000 · 3,8 s</td><td class="num">1000/1000 · 3,1 s</td><td>ambos correctos</td></tr>
+        <tr><td>Memoria</td><td class="num">11 MB</td><td class="num">9 MB</td><td>similar</td></tr>
+      </tbody>
+    </table></div>
+    <p class="small">Medido en un servidor x86 de 4 núcleos. En un teléfono las cifras absolutas serán menores, pero la ventaja relativa debería mantenerse porque viene de hacer menos trabajo por paquete y de usar el TCP del kernel. El laboratorio no pudo simular latencia de red; la pérdida se simuló descartando paquetes al azar. Una primera prueba de estrés del motor actual salió mal por un error del laboratorio (el servidor aún no había arrancado); repetida correctamente, ambos motores aciertan 1000/1000.</p>
+  </section>
+
+  <section>
+    <h2>5. ¿Lo permitirá Android?</h2>
+    <p>Es la pregunta clave. Lo que encontré apunta a que sí:</p>
+    <ul>
+      <li>Android activa <span class="mono">tcp_fwmark_accept</span>: una conexión aceptada hereda la “marca” de red del paquete que llegó. Las respuestas del servidor local saldrían por la misma red de prueba de la que vino la conexión, que es justo lo que el motor necesita.</li>
+      <li>Los paquetes que entran por una interfaz hacia una dirección propia se entregan localmente antes de cualquier regla de enrutamiento por aplicación.</li>
+      <li>El motor corre como <span class="mono">shell</span> (vía Shizuku), que no está sujeto a las restricciones de red de las apps normales.</li>
+    </ul>
+    <p>Pero no lo he podido comprobar en un teléfono. Por eso el primer paso del plan es una prueba de concepto mínima en tu dispositivo.</p>
+  </section>
+
+  <section>
+    <h2>6. Riesgos e incógnitas</h2>
+    <div class="risk">
+      <div><span class="tag h">Alto</span><b>El fabricante puede bloquearlo</b><p>Algunas capas de los fabricantes cambian el enrutamiento o el cortafuegos. Hay un reporte de One UI (Android 17) donde el hotspot ignora la red de prueba incluso con el motor actual.</p></div>
+      <div><span class="tag m">Medio</span><b>Fallos de kernels nuevos</b><p>sing-tun tiene un caso abierto donde, en Linux 7.1, los SYN reescritos no llegan al servidor local. Los kernels de Android actuales son más antiguos, pero conviene vigilarlo.</p></div>
+      <div><span class="tag m">Medio</span><b>Falta IPv6 e ICMP</b><p>El prototipo solo hace IPv4. IPv6 usa el mismo método (sin suma del encabezado IP). Ping (ICMP) hay que reenviarlo aparte.</p></div>
+      <div><span class="tag m">Medio</span><b>Plan B necesario</b><p>Si el stack del sistema falla en un teléfono, la app debe volver sola a un motor en la app (gVisor) para no quedarse sin internet.</p></div>
+      <div><span class="tag l">Bajo</span><b>Detección por TTL</b><p>Ambos motores crean conexiones propias del teléfono, así que el TTL y la huella del sistema son los del teléfono. Las operadoras pueden usar otras señales; y compartir puede ir contra el contrato de tu operadora.</p></div>
+      <div><span class="tag l">Bajo</span><b>Licencias</b><p>Shizzi no tiene licencia: la app nueva no debe copiar su código. Sí se pueden usar Shizuku (Apache-2.0), gVisor (Apache-2.0) y la documentación de AOSP. El motor nuevo es código original.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>7. Cómo haría la app nueva desde cero</h2>
+    <div class="tbl"><table>
+      <thead><tr><th>Pieza</th><th>Decisión</th></tr></thead>
+      <tbody>
+        <tr><td>Plataforma</td><td>Android 13 o superior (evita instalar módulos del sistema en 11–12)</td></tr>
+        <tr><td>Interfaz</td><td>Kotlin + Jetpack Compose, con el diseño de la maqueta (perfiles, señal, batería, actividad)</td></tr>
+        <tr><td>Permisos</td><td>Shizuku, con un servicio privilegiado propio que crea la red de prueba y controla el hotspot</td></tr>
+        <tr><td>Motor</td><td>Go, en modo <b>mixto</b>: TCP por el stack del sistema y UDP/ICMP en la app; IPv4 + IPv6; cambio automático a gVisor si la prueba inicial falla</td></tr>
+        <tr><td>Calidad</td><td>Este laboratorio en la compilación automática: cada cambio del motor se mide y se comprueba la integridad antes de publicar el APK</td></tr>
+        <tr><td>Código</td><td>Todo original; dependencias con licencias permisivas; repositorio propio</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section>
+    <h2>8. Plan por fases</h2>
+    <ol class="phases">
+      <li><b>Prueba en tu teléfono (lo primero).</b> Un APK mínimo que crea la red de prueba, activa el hotspot y usa el motor nuevo, con un botón para medir. Responde si Android lo permite.</li>
+      <li><b>Motor completo.</b> IPv6, ICMP, limpieza de la tabla de conexiones, cambio automático a gVisor y pruebas en el laboratorio.</li>
+      <li><b>La app.</b> Interfaz nueva con el diseño aprobado, perfiles, señal, batería y actividad.</li>
+      <li><b>Pulido.</b> Widget, accesos directos, plan de datos y el resto de funciones que ya tiene Cóndor.</li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>Fuentes</h2>
+    <ul class="sources">
+      <li><a href="https://github.com/SagerNet/sing-tun/issues/98">sing-tun #98: stack mixto en Linux 7.1</a></li>
+      <li><a href="https://github.com/SagerNet/SagerNet/discussions/327">SagerNet: qué es el “NAT tun” (stack del sistema)</a></li>
+      <li><a href="https://github.com/LIghtJUNction/sing-box/issues/389">sing-box: tabla NAT con clave incompleta (Windows)</a></li>
+      <li><a href="https://sing-box.sagernet.org/configuration/inbound/tun/">sing-box: documentación de TUN</a></li>
+      <li><a href="https://android.googlesource.com/platform//packages/modules/Connectivity/+/588a9d5b2658bbb4cb22f99a7cc87170b96599c8/Tethering/tests/integration/base/android/net/EthernetTetheringTestBase.java">AOSP: pruebas de tethering con redes de prueba</a></li>
+      <li><a href="https://github.com/carlelieser/shizzi/issues/53">Shizzi #53: One UI / Android 17</a></li>
+      <li><a href="https://www.netdevconf.info/1.1/proceedings/slides/colitti-kline-linux-networking-android-devices.pdf">Colitti y Kline: redes de Linux en Android (fwmark)</a></li>
+      <li><a href="https://android.googlesource.com/platform/system/netd/+/master/server/FwmarkServer.cpp">AOSP netd: FwmarkServer</a></li>
+      <li><a href="https://gvisor.dev/docs/user_guide/networking">gVisor: guía de red</a></li>
+      <li><a href="https://tailscale.com/blog/quic-udp-throughput">Tailscale: GSO/GRO para más velocidad</a></li>
+      <li><a href="https://docs.rs/tun-rs/2.8.1/src/tun_rs/platform/linux/offload.rs.html">tun-rs: GSO/GRO con IFF_VNET_HDR</a></li>
+      <li><a href="https://p.codekk.com/detail/c/heiher/hev-socks5-tunnel">hev-socks5-tunnel</a></li>
+      <li><a href="https://www.github.com/Mygod/VPNHotspot">VPN Hotspot (Mygod)</a></li>
+      <li><a href="https://WWW.GITHUB.COM/pyamsoft/tetherfi">TetherFi</a></li>
+      <li><a href="https://discuss.grapheneos.org/d/5683-tethering-is-being-detected-by-t-mobile">GrapheneOS: detección de tethering</a></li>
+    </ul>
+  </section>
+</div>
