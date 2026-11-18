@@ -5,6 +5,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
@@ -67,6 +68,7 @@ fun Panel(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> 
     val shape = RoundedCornerShape(22.dp)
     Column(
         modifier = modifier
+            .fillMaxWidth()
             .clip(shape)
             .background(Dn.Surface)
             .border(1.dp, Dn.Border, shape)

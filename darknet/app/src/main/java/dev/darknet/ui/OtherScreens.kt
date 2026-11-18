@@ -28,6 +28,11 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -164,6 +169,11 @@ fun SettingsScreen(
     log: List<String>?,
     onFastEngine: (Boolean) -> Unit,
     onUsb: (Boolean) -> Unit,
+    onQuota: (Int) -> Unit,
+    onResetDay: (Int) -> Unit,
+    onQuotaStop: (Boolean) -> Unit,
+    onIdle: (Int) -> Unit,
+    onAlerts: (Boolean) -> Unit,
     onShizuku: () -> Unit,
     onShowLog: () -> Unit,
     onHideLog: () -> Unit,
@@ -178,6 +188,21 @@ fun SettingsScreen(
             )
             Toggle("Compartir también por USB", "Incluye un cable USB además del hotspot Wi-Fi.", settings.usb, onUsb)
             Text("Los cambios se aplican la próxima vez que empiezas a compartir.", style = Dn.Small)
+        }
+
+        SectionLabel("Plan de datos")
+        Panel {
+            Choice("Plan mensual", "Tus GB del mes; aviso al 80 %.", settings.quotaGb, listOf(0, 5, 10, 15, 20, 30, 50, 100), { if (it == 0) "Desactivado" else "$it GB" }, onQuota)
+            if (settings.quotaGb > 0) {
+                Choice("Se renueva el día", "", settings.quotaResetDay, (1..28).toList(), { it.toString() }, onResetDay)
+                Toggle("Detener al llegar al límite", "Deja de compartir cuando se acabe el plan.", settings.quotaStop, onQuotaStop)
+            }
+        }
+
+        SectionLabel("Automático")
+        Panel {
+            Choice("Apagar si no hay nadie", "Tras este tiempo sin dispositivos conectados.", settings.idleMinutes, listOf(0, 3, 5, 10, 15, 30, 60), { if (it == 0) "Nunca" else "$it min" }, onIdle)
+            Toggle("Avisos de conexión", "Notificación y vibración cuando alguien entra o sale.", settings.deviceAlerts, onAlerts)
         }
 
         SectionLabel("Shizuku")
@@ -232,5 +257,32 @@ private fun Toggle(title: String, subtitle: String, checked: Boolean, onChange: 
             checked = checked, onCheckedChange = onChange,
             colors = SwitchDefaults.colors(checkedTrackColor = Dn.Violet, checkedThumbColor = Dn.Background),
         )
+    }
+}
+
+/** A setting with a few choices, cycled with a tap and listed in a menu. */
+@Composable
+private fun <T> Choice(
+    title: String,
+    subtitle: String,
+    value: T,
+    options: List<T>,
+    label: (T) -> String,
+    onChange: (T) -> Unit,
+) {
+    var open by remember { mutableStateOf(false) }
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(title, style = Dn.Body.copy(fontWeight = FontWeight.SemiBold))
+            if (subtitle.isNotEmpty()) Text(subtitle, style = Dn.Small)
+        }
+        Box {
+            TextButton(onClick = { open = true }) { Text(label(value), color = Dn.VioletSoft) }
+            DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+                options.forEach { option ->
+                    DropdownMenuItem(text = { Text(label(option)) }, onClick = { onChange(option); open = false })
+                }
+            }
+        }
     }
 }

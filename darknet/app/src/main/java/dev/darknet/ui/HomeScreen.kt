@@ -36,6 +36,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -62,9 +63,12 @@ fun HomeScreen(
     status: ShareStatus,
     shizuku: ShizukuState,
     fastEngineEnabled: Boolean,
+    quotaGb: Int,
+    quotaResetDay: Int,
     onToggle: () -> Unit,
     onFixShizuku: () -> Unit,
 ) {
+    val vitals = rememberVitals()
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -80,7 +84,11 @@ fun HomeScreen(
 
         if (shizuku != ShizukuState.READY) ShizukuCard(shizuku, onFixShizuku)
 
+        VitalsRow(vitals)
+
         PowerButton(status = status, enabled = shizuku == ShizukuState.READY, onClick = onToggle)
+
+        if (quotaGb > 0) PlanCard(quotaGb, quotaResetDay)
 
         if (status.state == ShareStatus.State.ERROR) {
             Panel {
@@ -312,3 +320,111 @@ fun StatusLine(icon: ImageVector, tint: Color, title: String, subtitle: String) 
 
 @Composable
 fun Spacer16() = Spacer(Modifier.height(16.dp))
+
+@Composable
+private fun VitalsRow(v: Vitals) {
+    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        VitalTile("Señal", v.network, signalText(v.signalBars), Modifier.weight(1f)) { SignalBars(v.signalBars) }
+        VitalTile(
+            "Batería",
+            if (v.batteryPercent >= 0) "${v.batteryPercent}%" else "–",
+            if (v.charging) "Cargando" else "En uso",
+            Modifier.weight(1f),
+        )
+        VitalTile(
+            "Temperatura",
+            if (v.temperatureC.isNaN()) "–" else "%.0f °C".format(v.temperatureC),
+            when {
+                v.temperatureC.isNaN() -> ""
+                v.temperatureC >= 43 -> "Caliente"
+                v.temperatureC >= 38 -> "Tibio"
+                else -> "Normal"
+            },
+            Modifier.weight(1f),
+            valueColor = when {
+                v.temperatureC.isNaN() -> Dn.Text
+                v.temperatureC >= 43 -> Dn.Red
+                v.temperatureC >= 38 -> Dn.Amber
+                else -> Dn.Text
+            },
+        )
+    }
+}
+
+private fun signalText(bars: Int) = when (bars) {
+    4 -> "Excelente"
+    3 -> "Buena"
+    2 -> "Regular"
+    1 -> "Débil"
+    0 -> "Sin señal"
+    else -> ""
+}
+
+@Composable
+private fun VitalTile(
+    label: String,
+    value: String,
+    caption: String,
+    modifier: Modifier = Modifier,
+    valueColor: Color = Dn.Text,
+    extra: @Composable () -> Unit = {},
+) {
+    Panel(modifier) {
+        Text(label, style = Dn.Small)
+        Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(value, style = Dn.Value.copy(color = valueColor))
+            extra()
+        }
+        if (caption.isNotEmpty()) Text(caption, style = Dn.Small)
+    }
+}
+
+@Composable
+private fun SignalBars(level: Int) {
+    Row(horizontalArrangement = Arrangement.spacedBy(2.dp), verticalAlignment = Alignment.Bottom, modifier = Modifier.padding(bottom = 5.dp)) {
+        for (i in 0 until 4) {
+            Box(
+                Modifier
+                    .size(width = 4.dp, height = (5 + i * 4).dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(if (i < level) Dn.Cyan else Dn.Border),
+            )
+        }
+    }
+}
+
+@Composable
+private fun PlanCard(quotaGb: Int, resetDay: Int) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    remember { dev.darknet.data.UsageStore.load(context) }
+    val usage by dev.darknet.data.UsageStore.usage.collectAsState()
+    val today = java.time.LocalDate.now()
+    val limit = quotaGb * 1_000_000_000L
+    val used = usage.cycle(today, resetDay)
+    val forecast = usage.forecast(today, resetDay)
+    val fraction = (used.toFloat() / limit).coerceIn(0f, 1f)
+    val shown by androidx.compose.animation.core.animateFloatAsState(fraction, label = "plan")
+    val renews = dev.darknet.data.Usage.cycleStart(today, resetDay).plusMonths(1)
+
+    Panel {
+        Row {
+            SectionLabel("Plan del mes", Modifier.weight(1f))
+            Text("se renueva el ${renews.dayOfMonth}/${renews.monthValue}", style = Dn.Small)
+        }
+        Text("${Bytes.format(used)} de $quotaGb GB", style = Dn.Value)
+        Box(Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(50)).background(Dn.Border)) {
+            Box(
+                Modifier.fillMaxWidth(shown).height(8.dp).clip(RoundedCornerShape(50)).background(
+                    Brush.horizontalGradient(
+                        if (fraction >= 0.8f) listOf(Dn.Amber, Dn.Red) else listOf(Dn.Violet, Dn.Cyan),
+                    ),
+                ),
+            )
+        }
+        Text(
+            if (forecast <= limit) "A este ritmo te alcanza el mes (≈ ${Bytes.format(forecast)})"
+            else "A este ritmo gastarás ≈ ${Bytes.format(forecast)}; te pasarías del plan",
+            style = Dn.Small.copy(color = if (forecast <= limit) Dn.Green else Dn.Amber),
+        )
+    }
+}

@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Devices
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Settings
@@ -65,6 +66,7 @@ class DarkNetApp : Application() {
 
 private enum class Tab(val label: String, val icon: ImageVector) {
     HOME("Inicio", Icons.Filled.Home),
+    ACTIVITY("Actividad", Icons.Filled.BarChart),
     SPEED("Velocidad", Icons.Filled.Speed),
     DEVICES("Equipos", Icons.Filled.Devices),
     SETTINGS("Ajustes", Icons.Filled.Settings),
@@ -77,7 +79,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1)
+        requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS, Manifest.permission.READ_PHONE_STATE), 1)
         reconnect()
 
         setContent {
@@ -101,11 +103,14 @@ class MainActivity : ComponentActivity() {
                                 status = status,
                                 shizuku = shizuku,
                                 fastEngineEnabled = settings.fastEngine,
+                                quotaGb = settings.quotaGb,
+                                quotaResetDay = settings.quotaResetDay,
                                 onToggle = {
                                     if (status.isActive) ShareService.stop(this@MainActivity) else ShareService.start(this@MainActivity)
                                 },
                                 onFixShizuku = ShizukuLink::requestPermission,
                             )
+                            Tab.ACTIVITY -> dev.darknet.ui.ActivityScreen()
                             Tab.SPEED -> SpeedScreen(onRun = { lifecycleScope.launch { SpeedTest.run() } })
                             Tab.DEVICES -> DevicesScreen(status)
                             Tab.SETTINGS -> SettingsScreen(
@@ -114,6 +119,11 @@ class MainActivity : ComponentActivity() {
                                 log = log,
                                 onFastEngine = { v -> scope.launch { prefs.setFastEngine(v) } },
                                 onUsb = { v -> scope.launch { prefs.setUsb(v) } },
+                                onQuota = { v -> scope.launch { prefs.setQuota(v) } },
+                                onResetDay = { v -> scope.launch { prefs.setQuotaResetDay(v) } },
+                                onQuotaStop = { v -> scope.launch { prefs.setQuotaStop(v) } },
+                                onIdle = { v -> scope.launch { prefs.setIdleMinutes(v) } },
+                                onAlerts = { v -> scope.launch { prefs.setDeviceAlerts(v) } },
                                 onShizuku = ShizukuLink::requestPermission,
                                 onShowLog = { scope.launch { log = ShareService.log() } },
                                 onHideLog = { log = null },
