@@ -4,7 +4,6 @@ import android.content.Context
 import android.net.ConnectivityManager
 import android.net.LinkProperties
 import android.net.Network
-import android.net.NetworkCapabilities
 import android.net.NetworkRequest
 import android.os.Binder
 import android.os.ParcelFileDescriptor
@@ -114,7 +113,7 @@ internal class SystemNet(private val context: Context) {
         }
         val request = NetworkRequest.Builder()
             .clearCapabilities()
-            .addTransportType(NetworkCapabilities.TRANSPORT_TEST)
+            .addTransportType(TRANSPORT_TEST)
             .setNetworkSpecifier(iface)
             .build()
         cm.requestNetwork(request, callback)
@@ -200,6 +199,8 @@ internal class SystemNet(private val context: Context) {
     }
 
     companion object {
+        /** NetworkCapabilities.TRANSPORT_TEST, hidden from the public SDK. */
+        const val TRANSPORT_TEST = 7
         const val TETHERING_WIFI = 0
         const val TETHERING_USB = 1
     }
