@@ -70,6 +70,7 @@ class ShareService : Service() {
             try {
                 val settings = prefs.settings.first()
                 val options = JSONObject().put("fastEngine", settings.fastEngine).put("usb", settings.usb)
+                    .put("dns", org.json.JSONArray(dev.darknet.data.DnsChoice.servers[settings.dns].orEmpty()))
                 val service = ShizukuLink.service()
                 publish(ShareStatus.parse(service.start(options.toString())))
                 if (mutableStatus.value.isActive) followStatus() else stopSelf()

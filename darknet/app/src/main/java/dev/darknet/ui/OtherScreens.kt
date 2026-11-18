@@ -2,6 +2,8 @@ package dev.darknet.ui
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.border
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -65,8 +67,9 @@ private fun Screen(title: String, content: @Composable () -> Unit) {
 // ---- devices ------------------------------------------------------------------
 
 @Composable
-fun DevicesScreen(status: ShareStatus) {
+fun DevicesScreen(status: ShareStatus, shizukuReady: Boolean) {
     Screen("Dispositivos") {
+        if (shizukuReady) QrPanel()
         if (!status.isActive) {
             Text("Empieza a compartir para ver quién se conecta.", style = Dn.Small)
             return@Screen
@@ -174,6 +177,9 @@ fun SettingsScreen(
     onQuotaStop: (Boolean) -> Unit,
     onIdle: (Int) -> Unit,
     onAlerts: (Boolean) -> Unit,
+    onAccent: (String) -> Unit,
+    onTheme: (String) -> Unit,
+    onDns: (String) -> Unit,
     onShizuku: () -> Unit,
     onShowLog: () -> Unit,
     onHideLog: () -> Unit,
@@ -188,6 +194,29 @@ fun SettingsScreen(
             )
             Toggle("Compartir también por USB", "Incluye un cable USB además del hotspot Wi-Fi.", settings.usb, onUsb)
             Text("Los cambios se aplican la próxima vez que empiezas a compartir.", style = Dn.Small)
+        }
+
+        SectionLabel("Apariencia")
+        Panel {
+            Choice("Tema", "", settings.theme, listOf("dark", "light", "system"),
+                { mapOf("dark" to "Oscuro", "light" to "Claro", "system" to "Como el sistema")[it] ?: it }, onTheme)
+            Text("Color", style = Dn.Body.copy(fontWeight = FontWeight.SemiBold))
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Accent.entries.forEach { a ->
+                    Box(
+                        Modifier.size(36.dp).clip(CircleShape).background(a.main)
+                            .border(3.dp, if (settings.accent == a.name) Dn.Text else Dn.Surface, CircleShape)
+                            .clickable { onAccent(a.name) },
+                    )
+                }
+            }
+        }
+
+        SectionLabel("Red de los dispositivos")
+        Panel {
+            Choice("DNS", "“Sin anuncios” bloquea anuncios y rastreadores en todos los dispositivos conectados (AdGuard DNS).",
+                settings.dns, listOf("normal", "noads", "family"), { dev.darknet.data.DnsChoice.labels[it] ?: it }, onDns)
+            Text("Se aplica la próxima vez que empiezas a compartir. Apps con su propio DNS seguro pueden ignorarlo.", style = Dn.Small)
         }
 
         SectionLabel("Plan de datos")

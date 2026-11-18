@@ -55,12 +55,14 @@ class PrivilegedService(base: Context) : IDarkNetService.Stub() {
         val opts = runCatching { JSONObject(options ?: "{}") }.getOrDefault(JSONObject())
         val fast = opts.optBoolean("fastEngine", true)
         usb = opts.optBoolean("usb", false)
+        val dns = opts.optJSONArray("dns")?.let { a -> List(a.length()) { a.getString(it) } }.orEmpty()
         state = "starting"
         detail = ""
         ServiceLog.info("start: fast engine $fast, usb $usb")
 
         try {
-            val network = net.createTestNetwork()
+            val network = net.createTestNetwork(dns)
+            ServiceLog.info("DNS for devices: ${dns.ifEmpty { TunAddresses.DNS }}")
             test = network
 
             val session = engine.Engine.start(
@@ -169,6 +171,14 @@ class PrivilegedService(base: Context) : IDarkNetService.Stub() {
     }
 
     override fun log(): String = ServiceLog.dump()
+
+    override fun hotspotInfo(): String = runCatching {
+        val (ssid, password, security) = net.hotspotInfo()
+        JSONObject().put("ssid", ssid).put("password", password).put("security", security).toString()
+    }.getOrElse {
+        ServiceLog.error("hotspot info", it)
+        JSONObject().put("error", it.message ?: it.javaClass.simpleName).toString()
+    }
 
     override fun setNetwork(handle: Long) {
         engineSession?.setNetwork(handle)

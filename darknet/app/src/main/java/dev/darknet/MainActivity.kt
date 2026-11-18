@@ -1,6 +1,7 @@
 package dev.darknet
 
 import android.Manifest
+import androidx.compose.animation.togetherWith
 import android.app.Application
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -83,10 +84,34 @@ class MainActivity : ComponentActivity() {
         reconnect()
 
         setContent {
+            val settings by prefs.settings.collectAsState(initial = null)
+            val loaded = settings ?: return@setContent
+            val systemDark = androidx.compose.foundation.isSystemInDarkTheme()
+            val dark = when (loaded.theme) { "light" -> false; "system" -> systemDark; else -> true }
+            val accent = runCatching { dev.darknet.ui.Accent.valueOf(loaded.accent) }.getOrDefault(dev.darknet.ui.Accent.VIOLET)
+            dev.darknet.ui.Dn.palette = dev.darknet.ui.Palette.of(accent, dark)
+            androidx.compose.runtime.SideEffect {
+                androidx.core.view.WindowCompat.getInsetsController(window, window.decorView).apply {
+                    isAppearanceLightStatusBars = !dark
+                    isAppearanceLightNavigationBars = !dark
+                }
+            }
+
             DarkNetTheme {
                 val status by ShareService.status.collectAsState()
                 val shizuku by ShizukuLink.state.collectAsState()
-                val settings by prefs.settings.collectAsState(initial = Settings())
+                val settings = loaded
+                val scope0 = rememberCoroutineScope()
+                if (!settings.onboarded) {
+                    androidx.compose.foundation.layout.Box(Modifier.fillMaxSize().background(Dn.Background).statusBarsPadding()) {
+                        dev.darknet.ui.Onboarding(
+                            shizuku = shizuku,
+                            onRequestShizuku = ShizukuLink::requestPermission,
+                            onDone = { scope0.launch { prefs.setOnboarded(true) } },
+                        )
+                    }
+                    return@DarkNetTheme
+                }
                 var tab by rememberSaveable { mutableStateOf(Tab.HOME) }
                 var log by remember { mutableStateOf<List<String>?>(null) }
                 val scope = rememberCoroutineScope()
@@ -94,10 +119,19 @@ class MainActivity : ComponentActivity() {
                 Column(
                     Modifier
                         .fillMaxSize()
-                        .background(Brush.verticalGradient(listOf(Color(0xFF120F2A), Dn.Background, Dn.Background)))
+                        .background(Brush.verticalGradient(listOf(Dn.Glow, Dn.Background, Dn.Background)))
                         .statusBarsPadding(),
                 ) {
-                    Box(Modifier.weight(1f)) {
+                    androidx.compose.animation.AnimatedContent(
+                        targetState = tab,
+                        transitionSpec = {
+                            val dir = if (targetState.ordinal > initialState.ordinal) 1 else -1
+                            (androidx.compose.animation.slideInHorizontally { it / 6 * dir } + androidx.compose.animation.fadeIn()) togetherWith
+                                (androidx.compose.animation.slideOutHorizontally { -it / 6 * dir } + androidx.compose.animation.fadeOut())
+                        },
+                        modifier = Modifier.weight(1f),
+                        label = "tabs",
+                    ) { tab ->
                         when (tab) {
                             Tab.HOME -> HomeScreen(
                                 status = status,
@@ -112,7 +146,7 @@ class MainActivity : ComponentActivity() {
                             )
                             Tab.ACTIVITY -> dev.darknet.ui.ActivityScreen()
                             Tab.SPEED -> SpeedScreen(onRun = { lifecycleScope.launch { SpeedTest.run() } })
-                            Tab.DEVICES -> DevicesScreen(status)
+                            Tab.DEVICES -> DevicesScreen(status, shizuku == ShizukuState.READY)
                             Tab.SETTINGS -> SettingsScreen(
                                 settings = settings,
                                 shizuku = shizuku,
@@ -124,6 +158,9 @@ class MainActivity : ComponentActivity() {
                                 onQuotaStop = { v -> scope.launch { prefs.setQuotaStop(v) } },
                                 onIdle = { v -> scope.launch { prefs.setIdleMinutes(v) } },
                                 onAlerts = { v -> scope.launch { prefs.setDeviceAlerts(v) } },
+                                onAccent = { v -> scope.launch { prefs.setAccent(v) } },
+                                onTheme = { v -> scope.launch { prefs.setTheme(v) } },
+                                onDns = { v -> scope.launch { prefs.setDns(v) } },
                                 onShizuku = ShizukuLink::requestPermission,
                                 onShowLog = { scope.launch { log = ShareService.log() } },
                                 onHideLog = { log = null },

@@ -20,6 +20,9 @@ interface IDarkNetService {
     // Build id, so the app can replace a stale service after an update.
     int version() = 6;
 
+    // The hotspot's name and password, for the QR code: JSON {"ssid","password","security"}.
+    String hotspotInfo() = 7;
+
     // Shizuku's reserved code: kill the service process.
     void destroy() = 16777114;
 }

@@ -56,7 +56,7 @@ internal class SystemNet(private val context: Context) {
 
     // ---- test network -------------------------------------------------------
 
-    fun createTestNetwork(): TestNetwork {
+    fun createTestNetwork(dns: List<String>): TestNetwork {
         val tnm = context.getSystemService(TestNetwork.TEST_NETWORK_SERVICE)
             ?: error("this phone has no test network service")
 
@@ -76,7 +76,7 @@ internal class SystemNet(private val context: Context) {
 
         val token = Binder()
         try {
-            setUpNetwork(tnm, name, v4, v6, token)
+            setUpNetwork(tnm, name, v4, v6, token, dns)
             val (network, callback) = awaitNetwork(name)
             ServiceLog.info("test network available on $name")
             return TestNetwork(name, fd, network, token, callback)
@@ -86,13 +86,13 @@ internal class SystemNet(private val context: Context) {
         }
     }
 
-    private fun setUpNetwork(tnm: Any, iface: String, v4: Any, v6: Any, token: Binder) {
+    private fun setUpNetwork(tnm: Any, iface: String, v4: Any, v6: Any, token: Binder, dns: List<String>) {
         if (Reflect.has(tnm, "setupTestNetwork", 3)) {
             val lp = LinkProperties()
             Reflect.call(lp, "setInterfaceName", iface)
             Reflect.call(lp, "addLinkAddress", v4)
             Reflect.call(lp, "addLinkAddress", v6)
-            for (dns in TunAddresses.DNS) Reflect.call(lp, "addDnsServer", InetAddress.getByName(dns))
+            for (server in dns.ifEmpty { TunAddresses.DNS }) Reflect.call(lp, "addDnsServer", InetAddress.getByName(server))
             Reflect.call(lp, "addRoute", route("0.0.0.0", 0, iface))
             Reflect.call(lp, "addRoute", route("::", 0, iface))
             Reflect.call(lp, "setMtu", TunAddresses.MTU)
@@ -130,6 +130,19 @@ internal class SystemNet(private val context: Context) {
     private fun route(destination: String, prefix: Int, iface: String): Any {
         val ipPrefix = Reflect.newInstance("android.net.IpPrefix", InetAddress.getByName(destination), prefix)
         return Reflect.newInstance("android.net.RouteInfo", ipPrefix, null, iface)
+    }
+
+    // ---- hotspot settings -----------------------------------------------------
+
+    /** The saved hotspot name, password and security type (needs the shell's Wi-Fi rights). */
+    fun hotspotInfo(): Triple<String, String, Int> {
+        val wifi = context.getSystemService(android.net.wifi.WifiManager::class.java)
+        val config = Reflect.call(wifi, "getSoftApConfiguration")!!
+        val ssid = runCatching { Reflect.call(config, "getWifiSsid")?.toString()?.trim('"') }.getOrNull()
+            ?: (Reflect.call(config, "getSsid") as? String).orEmpty()
+        val password = (Reflect.call(config, "getPassphrase") as? String).orEmpty()
+        val security = (Reflect.call(config, "getSecurityType") as? Int) ?: 1
+        return Triple(ssid, password, security)
     }
 
     // ---- tethering ----------------------------------------------------------
