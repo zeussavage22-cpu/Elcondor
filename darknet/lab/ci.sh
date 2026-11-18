@@ -16,10 +16,16 @@ HTTP=$!
 for _ in $(seq 1 40); do ip netns exec phone curl -s -m 1 -o /dev/null http://203.0.113.2:8080/ && break; sleep 0.25; done
 
 check() { # mode
-  ip netns exec phone "$ENGINE" -fast="$1" > "$LAB/engine.log" 2>&1 &
+  # -nonblock: Android hands the TUN over non-blocking.
+  ip netns exec phone "$ENGINE" -fast="$1" -nonblock=true > "$LAB/engine.log" 2>&1 &
   local pid=$!
   sleep 3
   cat "$LAB/engine.log"
+  local t0 t1 idle
+  t0=$(awk '{print $14+$15}' /proc/$pid/stat); sleep 4; t1=$(awk '{print $14+$15}' /proc/$pid/stat)
+  idle=$(( (t1 - t0) * 100 / 400 ))
+  echo "idle CPU: ${idle}% of one core"
+  [ "$idle" -le 10 ] || { echo "FAIL: engine burns CPU while idle (fast=$1)"; kill $pid; exit 1; }
   if [ "$1" = true ] && ! grep -q "fast path active: true" "$LAB/engine.log"; then
     echo "FAIL: fast path did not pass its probe"; kill $pid; exit 1
   fi

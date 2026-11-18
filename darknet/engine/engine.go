@@ -56,6 +56,12 @@ func Start(tunFD int, mtu int, tunAddr4 string, fakeAddr4 string, fast bool) (*S
 		return nil, fmt.Errorf("engine.Start: unsupported MTU %d", mtu)
 	}
 
+	// Android hands the TUN over non-blocking. Reads must block (or poll):
+	// spinning on EAGAIN pins a core at 100% and heats the phone.
+	if err := unix.SetNonblock(tunFD, false); err != nil {
+		return nil, fmt.Errorf("engine.Start: make TUN blocking: %w", err)
+	}
+
 	b := &binding{}
 	dialer := &net.Dialer{Timeout: 10 * time.Second, KeepAlive: 30 * time.Second, Control: b.control}
 
@@ -167,7 +173,11 @@ func (s *Session) readLoop(ctx context.Context) {
 		n, err := unix.Read(s.fd, p.data[:])
 		if err != nil {
 			packetPool.Put(p)
-			if err == unix.EINTR || err == unix.EAGAIN {
+			switch err {
+			case unix.EINTR:
+				continue
+			case unix.EAGAIN:
+				waitReadable(s.fd)
 				continue
 			}
 			return // descriptor closed: the session is over
@@ -200,4 +210,11 @@ func (s *Session) writeLoop(ctx context.Context) {
 		}
 		unix.Write(s.fd, out)
 	}
+}
+
+// waitReadable sleeps until the descriptor has a packet (or half a second
+// passes), so a non-blocking descriptor never turns the read loop into a spin.
+func waitReadable(fd int) {
+	fds := []unix.PollFd{{Fd: int32(fd), Events: unix.POLLIN}}
+	unix.Poll(fds, 500)
 }

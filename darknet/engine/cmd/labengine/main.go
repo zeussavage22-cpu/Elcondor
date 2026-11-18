@@ -19,6 +19,7 @@ func main() {
 	addr := flag.String("addr", "10.0.0.2", "TUN IPv4 address")
 	fake := flag.String("fake", "10.0.0.3", "unused address in the TUN subnet")
 	fast := flag.Bool("fast", true, "use the kernel fast path")
+	nonblock := flag.Bool("nonblock", false, "open the TUN non-blocking, as Android hands it over")
 	flag.Parse()
 
 	fd, err := unix.Open("/dev/net/tun", unix.O_RDWR, 0)
@@ -32,6 +33,9 @@ func main() {
 		panic(errno)
 	}
 
+	if *nonblock {
+		unix.SetNonblock(fd, true)
+	}
 	s, err := engine.Start(fd, 1500, *addr, *fake, *fast)
 	if err != nil {
 		panic(err)
