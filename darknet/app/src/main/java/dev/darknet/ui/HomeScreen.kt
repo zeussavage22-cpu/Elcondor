@@ -102,7 +102,8 @@ fun HomeScreen(
         }
 
         if (status.isActive) {
-            LiveStats(status)
+            LiveChartCard(status)
+            StabilityCard()
             EngineCard(status, fastEngineEnabled)
         }
     }
@@ -256,21 +257,6 @@ private fun Elapsed(since: Long) {
         }
     }
     if (since > 0) Text(Bytes.duration(now.longValue - since), style = Dn.Small)
-}
-
-@Composable
-private fun LiveStats(status: ShareStatus) {
-    Panel {
-        Row {
-            SectionLabel("Velocidad ahora", Modifier.weight(1f))
-            Text(Bytes.rate(status.speed), style = Dn.Small.copy(color = Dn.Cyan, fontWeight = FontWeight.SemiBold))
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Stat("Bajada", Bytes.format(status.bytesDown), Modifier.weight(1f))
-            Stat("Subida", Bytes.format(status.bytesUp), Modifier.weight(1f))
-            Stat("Equipos", status.devices.size.toString(), Modifier.weight(1f))
-        }
-    }
 }
 
 @Composable

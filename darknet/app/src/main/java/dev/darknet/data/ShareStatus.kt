@@ -17,6 +17,9 @@ data class ShareStatus(
     val devices: List<Device> = emptyList(),
     /** Bytes per second, both directions, from the last two reports. */
     val speed: Long = 0,
+    /** Bytes per second towards the devices (download) and from them (upload). */
+    val speedDown: Long = 0,
+    val speedUp: Long = 0,
 ) {
     enum class State { IDLE, STARTING, ACTIVE, STOPPING, ERROR }
 
@@ -42,12 +45,13 @@ data class ShareStatus(
             }
             val up = o.optLong("up")
             val down = o.optLong("down")
-            val speed = if (previous != null && previous.isActive && elapsedMs > 0) {
-                val delta = (up + down) - previous.total
-                if (delta >= 0) delta * 1000 / elapsedMs else 0
-            } else {
-                0
+            fun rate(now: Long, before: Long?): Long {
+                if (previous == null || !previous.isActive || elapsedMs <= 0 || before == null) return 0
+                val delta = now - before
+                return if (delta >= 0) delta * 1000 / elapsedMs else 0
             }
+            val speedDown = rate(down, previous?.bytesDown)
+            val speedUp = rate(up, previous?.bytesUp)
             return ShareStatus(
                 state = state,
                 detail = o.optString("detail"),
@@ -57,7 +61,9 @@ data class ShareStatus(
                 bytesDown = down,
                 since = o.optLong("since"),
                 devices = devices,
-                speed = speed,
+                speed = speedDown + speedUp,
+                speedDown = speedDown,
+                speedUp = speedUp,
             )
         }
     }

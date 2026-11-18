@@ -55,10 +55,11 @@ class PrivilegedService(base: Context) : IDarkNetService.Stub() {
         val opts = runCatching { JSONObject(options ?: "{}") }.getOrDefault(JSONObject())
         val fast = opts.optBoolean("fastEngine", true)
         usb = opts.optBoolean("usb", false)
+        val band = opts.optInt("band", 0)
         val dns = opts.optJSONArray("dns")?.let { a -> List(a.length()) { a.getString(it) } }.orEmpty()
         state = "starting"
         detail = ""
-        ServiceLog.info("start: fast engine $fast, usb $usb")
+        ServiceLog.info("start: fast engine $fast, usb $usb, band $band")
 
         try {
             val network = net.createTestNetwork(dns)
@@ -96,6 +97,11 @@ class PrivilegedService(base: Context) : IDarkNetService.Stub() {
             // Restart the hotspot so it re-selects its upstream (ours).
             net.stopTethering(SystemNet.TETHERING_WIFI)
             Thread.sleep(600)
+            if (band != 0) {
+                runCatching { net.setHotspotBand(band) }
+                    .onSuccess { ServiceLog.info("hotspot band: $it") }
+                    .onFailure { ServiceLog.error("could not change the hotspot band", it) }
+            }
             net.startTethering(SystemNet.TETHERING_WIFI)?.let { error("Wi-Fi hotspot: $it") }
             ServiceLog.info("Wi-Fi hotspot started")
             if (usb) {

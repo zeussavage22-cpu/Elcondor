@@ -14,8 +14,8 @@ android {
         applicationId = "dev.darknet"
         minSdk = 33
         targetSdk = 35
-        versionCode = 5
-        versionName = "0.3.0"
+        versionCode = 6
+        versionName = "0.4.0"
         ndk { abiFilters += "arm64-v8a" }
     }
 
@@ -67,6 +67,8 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
     implementation("androidx.datastore:datastore-preferences:1.1.1")
+    implementation("androidx.fragment:fragment-ktx:1.8.5")
+    implementation("androidx.biometric:biometric:1.1.0")
 
     val compose = platform("androidx.compose:compose-bom:2025.11.00")
     implementation(compose)

@@ -180,6 +180,9 @@ fun SettingsScreen(
     onAccent: (String) -> Unit,
     onTheme: (String) -> Unit,
     onDns: (String) -> Unit,
+    onBand: (String) -> Unit,
+    onStability: (Boolean) -> Unit,
+    onLock: (Boolean) -> Unit,
     onShizuku: () -> Unit,
     onShowLog: () -> Unit,
     onHideLog: () -> Unit,
@@ -214,9 +217,26 @@ fun SettingsScreen(
 
         SectionLabel("Red de los dispositivos")
         Panel {
-            Choice("DNS", "“Sin anuncios” bloquea anuncios y rastreadores en todos los dispositivos conectados (AdGuard DNS).",
-                settings.dns, listOf("normal", "noads", "family"), { dev.darknet.data.DnsChoice.labels[it] ?: it }, onDns)
+            Choice(
+                "DNS",
+                "Traduce los nombres de las páginas. “Automático” mide cuál responde más rápido en tu red cada vez que empiezas a compartir.",
+                settings.dns, dev.darknet.data.DnsChoice.labels.keys.toList(), { dev.darknet.data.DnsChoice.labels[it] ?: it }, onDns,
+            )
+            if (settings.dns == "auto" && settings.dnsAutoResult.isNotEmpty()) {
+                Text("Última elección: ${settings.dnsAutoResult}", style = Dn.Small.copy(color = Dn.Cyan))
+            }
             Text("Se aplica la próxima vez que empiezas a compartir. Apps con su propio DNS seguro pueden ignorarlo.", style = Dn.Small)
+        }
+
+        SectionLabel("Hotspot")
+        Panel {
+            Choice(
+                "Banda Wi‑Fi",
+                "5 GHz es la más rápida y compatible con iPhone. 6 GHz necesita WPA3 y equipos recientes; 2.4 GHz llega más lejos pero es más lenta.",
+                settings.band, listOf("auto", "5", "6", "2"),
+                { mapOf("auto" to "La del teléfono", "2" to "2.4 GHz", "5" to "5 GHz", "6" to "6 GHz")[it] ?: it }, onBand,
+            )
+            Text("Se aplica la próxima vez que empiezas a compartir y también cambia la banda en los ajustes del teléfono.", style = Dn.Small)
         }
 
         SectionLabel("Plan de datos")
@@ -232,6 +252,12 @@ fun SettingsScreen(
         Panel {
             Choice("Apagar si no hay nadie", "Tras este tiempo sin dispositivos conectados.", settings.idleMinutes, listOf(0, 3, 5, 10, 15, 30, 60), { if (it == 0) "Nunca" else "$it min" }, onIdle)
             Toggle("Avisos de conexión", "Notificación y vibración cuando alguien entra o sale.", settings.deviceAlerts, onAlerts)
+            Toggle("Avisos de estabilidad", "Te avisa si se corta el internet, cuando vuelve, o si el ping sube mucho.", settings.stabilityAlerts, onStability)
+        }
+
+        SectionLabel("Seguridad")
+        Panel {
+            Toggle("Bloqueo con huella o PIN", "Pide tu huella, cara o PIN para abrir DarkNet.", settings.lock, onLock)
         }
 
         SectionLabel("Shizuku")

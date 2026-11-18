@@ -12,6 +12,9 @@ import android.os.IBinder
 import android.os.VibrationEffect
 import android.os.Vibrator
 import dev.darknet.data.Bytes
+import dev.darknet.data.DnsChoice
+import dev.darknet.data.DnsProbe
+import dev.darknet.data.Health
 import dev.darknet.data.Prefs
 import dev.darknet.data.Session
 import dev.darknet.data.Settings
@@ -42,6 +45,7 @@ class ShareService : Service() {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var follow: Job? = null
+    private var health: Job? = null
     private val prefs by lazy { Prefs(this) }
 
     // Per-session bookkeeping.
@@ -70,13 +74,44 @@ class ShareService : Service() {
             try {
                 val settings = prefs.settings.first()
                 val options = JSONObject().put("fastEngine", settings.fastEngine).put("usb", settings.usb)
-                    .put("dns", org.json.JSONArray(dev.darknet.data.DnsChoice.servers[settings.dns].orEmpty()))
+                    .put("dns", org.json.JSONArray(dnsServers(settings)))
+                    .put("band", BANDS[settings.band] ?: 0)
                 val service = ShizukuLink.service()
                 publish(ShareStatus.parse(service.start(options.toString())))
                 if (mutableStatus.value.isActive) followStatus() else stopSelf()
             } catch (failure: Throwable) {
                 publish(ShareStatus(ShareStatus.State.ERROR, failure.message ?: failure.javaClass.simpleName))
                 stopSelf()
+            }
+        }
+    }
+
+    /** The DNS servers for the devices; "auto" measures the candidates first. */
+    private suspend fun dnsServers(settings: Settings): List<String> {
+        if (settings.dns != "auto") return DnsChoice.servers[settings.dns].orEmpty()
+        val candidates = DnsChoice.autoCandidates.map { (key, label) -> Triple(key, label, DnsChoice.servers.getValue(key).first()) }
+        val best = DnsProbe.fastest(candidates)
+        prefs.setDnsAutoResult(best?.let { "${it.second} · ${it.third} ms" } ?: "Sin respuesta; uso Cloudflare")
+        return DnsChoice.servers.getValue(best?.first ?: "cloudflare")
+    }
+
+    /** Checks the phone's own connection every 5 s while sharing. */
+    private fun watchHealth() {
+        health?.cancel()
+        mutableHealth.value = Health()
+        health = scope.launch {
+            while (isActive) {
+                val before = mutableHealth.value
+                val now = before.add(Health.ping())
+                mutableHealth.value = now
+                if (prefs.settings.first().stabilityAlerts) {
+                    when {
+                        now.offline && !before.offline -> alert("Se cortó el internet", "Tus datos móviles no responden; DarkNet sigue esperando.", vibrate = true)
+                        !now.offline && before.offline -> alert("Volvió el internet", "La conexión respondió de nuevo.")
+                        now.slow && !before.slow -> alert("Conexión lenta", "El ping lleva un rato por encima de 300 ms.")
+                    }
+                }
+                delay(5000)
             }
         }
     }
@@ -89,6 +124,8 @@ class ShareService : Service() {
         lastSeenSomeone = sessionStart
         knownDevices = emptyMap()
         UsageStore.load(this)
+        mutableHistory.value = emptyList()
+        watchHealth()
         follow = scope.launch {
             var last = System.currentTimeMillis()
             while (isActive) {
@@ -192,6 +229,7 @@ class ShareService : Service() {
 
     private fun stopSharing(reason: String?) {
         follow?.cancel()
+        health?.cancel()
         mutableStatus.value = mutableStatus.value.copy(state = ShareStatus.State.STOPPING)
         scope.launch {
             runCatching { ShizukuLink.service().stop() }
@@ -206,6 +244,8 @@ class ShareService : Service() {
 
     private fun publish(status: ShareStatus) {
         mutableStatus.value = status
+        if (status.isActive) mutableHistory.value = (mutableHistory.value + (status.speedDown to status.speedUp)).takeLast(HISTORY)
+        else health?.cancel()
         getSystemService(NotificationManager::class.java).notify(NOTIFICATION_ID, notification(status))
         runCatching { DarkNetWidget.refresh(this, status) }
     }
@@ -249,6 +289,19 @@ class ShareService : Service() {
 
         private val mutableStatus = MutableStateFlow(ShareStatus())
         val status: StateFlow<ShareStatus> = mutableStatus.asStateFlow()
+
+        private val mutableHealth = MutableStateFlow(Health())
+        /** Connection quality of the current session. */
+        val connection: StateFlow<Health> = mutableHealth.asStateFlow()
+
+        /** Seconds of history kept for the live chart. */
+        const val HISTORY = 60
+        private val mutableHistory = MutableStateFlow<List<Pair<Long, Long>>>(emptyList())
+        /** Download and upload bytes per second, one entry per second, oldest first. */
+        val history: StateFlow<List<Pair<Long, Long>>> = mutableHistory.asStateFlow()
+
+        /** Setting value to SoftApConfiguration band. */
+        private val BANDS = mapOf("2" to 1, "5" to 2, "6" to 4)
 
         fun start(context: Context) {
             context.startForegroundService(Intent(context, ShareService::class.java))

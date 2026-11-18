@@ -28,6 +28,8 @@ class ShareStatusTest {
         val before = ShareStatus.parse(active)
         val after = ShareStatus.parse(active.replace("\"down\":9000", "\"down\":19000"), before, 2_000)
         assertEquals(5_000, after.speed)
+        assertEquals(5_000, after.speedDown)
+        assertEquals(0, after.speedUp)
     }
 
     @Test

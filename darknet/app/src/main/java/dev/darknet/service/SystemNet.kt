@@ -145,6 +145,31 @@ internal class SystemNet(private val context: Context) {
         return Triple(ssid, password, security)
     }
 
+    /**
+     * Makes the saved hotspot use one band ([BAND_2GHZ], [BAND_5GHZ] or [BAND_6GHZ]).
+     * 6 GHz requires WPA3; leaving it switches to WPA2/WPA3 so older devices can join.
+     * Returns a short description of what changed.
+     */
+    fun setHotspotBand(band: Int): String {
+        val wifi = context.getSystemService(android.net.wifi.WifiManager::class.java)
+        val config = Reflect.call(wifi, "getSoftApConfiguration")!!
+        val current = Reflect.call(config, "getBand") as? Int
+        val security = (Reflect.call(config, "getSecurityType") as? Int) ?: SECURITY_WPA2
+        val password = Reflect.call(config, "getPassphrase") as? String
+        val newSecurity = when {
+            band == BAND_6GHZ && security != SECURITY_WPA3 -> SECURITY_WPA3
+            band != BAND_6GHZ && security == SECURITY_WPA3 -> SECURITY_WPA3_TRANSITION
+            else -> security
+        }
+        if (current == band && newSecurity == security) return "already $band"
+        val builder = Reflect.newInstance("android.net.wifi.SoftApConfiguration\$Builder", config)
+        if (newSecurity != security && password != null) Reflect.call(builder, "setPassphrase", password, newSecurity)
+        Reflect.call(builder, "setBand", band)
+        val ok = Reflect.call(wifi, "setSoftApConfiguration", Reflect.call(builder, "build")) as? Boolean
+        if (ok == false) error("the system refused the new hotspot settings")
+        return "band $current -> $band, security $security -> $newSecurity"
+    }
+
     // ---- tethering ----------------------------------------------------------
 
     private val tethering: Any
@@ -216,6 +241,14 @@ internal class SystemNet(private val context: Context) {
         const val TRANSPORT_TEST = 7
         const val TETHERING_WIFI = 0
         const val TETHERING_USB = 1
+
+        // SoftApConfiguration constants.
+        const val BAND_2GHZ = 1
+        const val BAND_5GHZ = 2
+        const val BAND_6GHZ = 4
+        const val SECURITY_WPA2 = 1
+        const val SECURITY_WPA3_TRANSITION = 2
+        const val SECURITY_WPA3 = 3
     }
 }
 

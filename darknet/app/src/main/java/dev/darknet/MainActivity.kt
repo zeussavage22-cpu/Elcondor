@@ -4,7 +4,10 @@ import android.Manifest
 import androidx.compose.animation.togetherWith
 import android.app.Application
 import android.os.Bundle
-import androidx.activity.ComponentActivity
+import androidx.fragment.app.FragmentActivity
+import androidx.biometric.BiometricManager
+import androidx.biometric.BiometricPrompt
+import androidx.core.content.ContextCompat
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
@@ -27,6 +30,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Devices
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material3.Icon
@@ -73,9 +77,60 @@ private enum class Tab(val label: String, val icon: ImageVector) {
     SETTINGS("Ajustes", Icons.Filled.Settings),
 }
 
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
 
     private val prefs by lazy { Prefs(this) }
+
+    /** Unlocked since the app came to the front (only matters with the lock on). */
+    private var unlocked by mutableStateOf(false)
+    private var lockMessage by mutableStateOf("")
+    private var leftAt = 0L
+
+    private val authenticators = BiometricManager.Authenticators.BIOMETRIC_WEAK or BiometricManager.Authenticators.DEVICE_CREDENTIAL
+
+    /**
+     * Shows the system fingerprint/face/PIN prompt; [onOk] runs on success. If the phone has
+     * no screen lock at all, [strict] refuses (turning the lock on) and otherwise lets the
+     * person in, so nobody gets locked out after removing their fingerprints.
+     */
+    private fun authenticate(title: String, strict: Boolean = false, onOk: () -> Unit) {
+        val can = BiometricManager.from(this).canAuthenticate(authenticators)
+        if (can != BiometricManager.BIOMETRIC_SUCCESS) {
+            lockMessage = "Configura una huella, cara o PIN en los ajustes del teléfono para usar el bloqueo."
+            if (strict) android.widget.Toast.makeText(this, lockMessage, android.widget.Toast.LENGTH_LONG).show() else onOk()
+            return
+        }
+        val prompt = BiometricPrompt(
+            this, ContextCompat.getMainExecutor(this),
+            object : BiometricPrompt.AuthenticationCallback() {
+                override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                    lockMessage = ""
+                    onOk()
+                }
+                override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
+                    lockMessage = errString.toString()
+                }
+            },
+        )
+        prompt.authenticate(
+            BiometricPrompt.PromptInfo.Builder()
+                .setTitle(title)
+                .setSubtitle("Usa tu huella, cara o PIN")
+                .setAllowedAuthenticators(authenticators)
+                .build(),
+        )
+    }
+
+    override fun onStop() {
+        super.onStop()
+        leftAt = System.currentTimeMillis()
+    }
+
+    override fun onStart() {
+        super.onStart()
+        // Lock again after 30 s in the background.
+        if (leftAt > 0 && System.currentTimeMillis() - leftAt > 30_000) unlocked = false
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -110,6 +165,10 @@ class MainActivity : ComponentActivity() {
                             onDone = { scope0.launch { prefs.setOnboarded(true) } },
                         )
                     }
+                    return@DarkNetTheme
+                }
+                if (settings.lock && !unlocked) {
+                    LockScreen(lockMessage) { authenticate("Desbloquear DarkNet") { unlocked = true } }
                     return@DarkNetTheme
                 }
                 var tab by rememberSaveable { mutableStateOf(Tab.HOME) }
@@ -161,6 +220,15 @@ class MainActivity : ComponentActivity() {
                                 onAccent = { v -> scope.launch { prefs.setAccent(v) } },
                                 onTheme = { v -> scope.launch { prefs.setTheme(v) } },
                                 onDns = { v -> scope.launch { prefs.setDns(v) } },
+                                onBand = { v -> scope.launch { prefs.setBand(v) } },
+                                onStability = { v -> scope.launch { prefs.setStabilityAlerts(v) } },
+                                onLock = { v ->
+                                    // Confirm it's you before turning the lock on or off.
+                                    authenticate(if (v) "Activar el bloqueo" else "Quitar el bloqueo", strict = v) {
+                                        unlocked = true
+                                        scope.launch { prefs.setLock(v) }
+                                    }
+                                },
                                 onShizuku = ShizukuLink::requestPermission,
                                 onShowLog = { scope.launch { log = ShareService.log() } },
                                 onHideLog = { log = null },
@@ -187,6 +255,25 @@ class MainActivity : ComponentActivity() {
             }.getOrDefault(false)
             if (active) ShareService.start(this@MainActivity)
         }
+    }
+}
+
+@Composable
+private fun LockScreen(message: String, onUnlock: () -> Unit) {
+    androidx.compose.runtime.LaunchedEffect(Unit) { onUnlock() }
+    Column(
+        Modifier.fillMaxSize().background(Dn.Background).statusBarsPadding().padding(32.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Icon(androidx.compose.material.icons.Icons.Filled.Lock, null, tint = Dn.VioletSoft, modifier = Modifier.height(56.dp).width(56.dp))
+        Text("DarkNet está bloqueada", style = Dn.Heading)
+        if (message.isNotEmpty()) Text(message, style = Dn.Small)
+        androidx.compose.material3.Button(
+            onClick = onUnlock,
+            colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = Dn.Violet),
+        ) { Text("Desbloquear", color = Dn.Background) }
+        Text("El hotspot sigue funcionando mientras está bloqueada.", style = Dn.Small)
     }
 }
 

@@ -31,8 +31,16 @@ data class Settings(
     val theme: String = "dark",
     /** The first-run guide was finished. */
     val onboarded: Boolean = false,
-    /** DNS the hotspot's devices use: "normal", "noads" or "family". */
+    /** DNS the hotspot's devices use: a key of [DnsChoice.servers] or "auto". */
     val dns: String = "normal",
+    /** What "auto" picked last time, e.g. "Cloudflare · 14 ms". */
+    val dnsAutoResult: String = "",
+    /** Hotspot band: "auto" (leave the phone's), "2", "5" or "6" GHz. */
+    val band: String = "auto",
+    /** Warn when the connection drops or gets slow. */
+    val stabilityAlerts: Boolean = true,
+    /** Ask for fingerprint, face or PIN to open DarkNet. */
+    val lock: Boolean = false,
 )
 
 private val Context.store by preferencesDataStore("darknet")
@@ -50,6 +58,10 @@ class Prefs(private val context: Context) {
         val theme = stringPreferencesKey("theme")
         val onboarded = booleanPreferencesKey("onboarded")
         val dns = stringPreferencesKey("dns")
+        val dnsAuto = stringPreferencesKey("dns_auto_result")
+        val band = stringPreferencesKey("band")
+        val stability = booleanPreferencesKey("stability_alerts")
+        val lock = booleanPreferencesKey("lock")
     }
 
     val settings: Flow<Settings> = context.store.data.map(::read)
@@ -65,7 +77,11 @@ class Prefs(private val context: Context) {
         accent = p[K.accent] ?: "VIOLET",
         theme = p[K.theme] ?: "dark",
         onboarded = p[K.onboarded] ?: false,
-        dns = p[K.dns] ?: "normal",
+        dns = p[K.dns]?.takeIf { it in DnsChoice.labels } ?: "normal",
+        dnsAutoResult = p[K.dnsAuto] ?: "",
+        band = p[K.band] ?: "auto",
+        stabilityAlerts = p[K.stability] ?: true,
+        lock = p[K.lock] ?: false,
     )
 
     suspend fun setFastEngine(value: Boolean) = context.store.edit { it[K.fast] = value }
@@ -79,16 +95,40 @@ class Prefs(private val context: Context) {
     suspend fun setTheme(value: String) = context.store.edit { it[K.theme] = value }
     suspend fun setOnboarded(value: Boolean) = context.store.edit { it[K.onboarded] = value }
     suspend fun setDns(value: String) = context.store.edit { it[K.dns] = value }
+    suspend fun setDnsAutoResult(value: String) = context.store.edit { it[K.dnsAuto] = value }
+    suspend fun setBand(value: String) = context.store.edit { it[K.band] = value }
+    suspend fun setStabilityAlerts(value: Boolean) = context.store.edit { it[K.stability] = value }
+    suspend fun setLock(value: Boolean) = context.store.edit { it[K.lock] = value }
 }
 
 /** DNS servers for each choice, IPv4 and IPv6. */
 object DnsChoice {
     val servers = mapOf(
         "normal" to listOf("1.1.1.1", "8.8.8.8", "2606:4700:4700::1111", "2001:4860:4860::8888"),
+        // Cloudflare 1.1.1.1.
+        "cloudflare" to listOf("1.1.1.1", "1.0.0.1", "2606:4700:4700::1111", "2606:4700:4700::1001"),
+        // Cloudflare for Families: also blocks malware.
+        "secure" to listOf("1.1.1.2", "1.0.0.2", "2606:4700:4700::1112", "2606:4700:4700::1002"),
+        "google" to listOf("8.8.8.8", "8.8.4.4", "2001:4860:4860::8888", "2001:4860:4860::8844"),
+        "quad9" to listOf("9.9.9.9", "149.112.112.112", "2620:fe::fe", "2620:fe::9"),
         // AdGuard DNS: blocks ads and trackers.
         "noads" to listOf("94.140.14.14", "94.140.15.15", "2a10:50c0::ad1:ff", "2a10:50c0::ad2:ff"),
         // AdGuard DNS Family: also blocks adult content and enforces safe search.
         "family" to listOf("94.140.14.15", "94.140.15.16", "2a10:50c0::bad1:ff", "2a10:50c0::bad2:ff"),
     )
-    val labels = mapOf("normal" to "Normal", "noads" to "Sin anuncios", "family" to "Familiar")
+
+    /** In the order the settings menu shows them. */
+    val labels = linkedMapOf(
+        "auto" to "Automático (el más rápido)",
+        "cloudflare" to "Cloudflare 1.1.1.1",
+        "secure" to "Cloudflare sin virus (1.1.1.2)",
+        "google" to "Google",
+        "quad9" to "Quad9",
+        "noads" to "Sin anuncios",
+        "family" to "Familiar",
+        "normal" to "Normal",
+    )
+
+    /** What the automatic choice compares. */
+    val autoCandidates = listOf("cloudflare" to "Cloudflare", "google" to "Google", "quad9" to "Quad9")
 }
