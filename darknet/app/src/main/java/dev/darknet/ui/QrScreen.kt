@@ -35,7 +35,7 @@ import org.json.JSONObject
 
 /** The standard Wi-Fi QR payload phone cameras understand. */
 fun wifiQr(ssid: String, password: String, security: Int): String {
-    fun esc(s: String) = s.replace("\\", "\\\\").replace(";", "\;").replace(",", "\\,").replace(":", "\\:").replace("\"", "\\\"")
+    fun esc(s: String) = s.replace("\\", "\\\\").replace(";", "\\;").replace(",", "\\,").replace(":", "\\:").replace("\"", "\\\"")
     val type = when {
         password.isEmpty() || security == 0 -> "nopass"
         security >= 2 -> "SAE"
