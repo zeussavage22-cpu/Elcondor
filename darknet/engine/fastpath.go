@@ -11,14 +11,14 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-// fastPath hands IPv4 TCP to the kernel.
+// fastPath hands TCP of one IP family to the kernel.
 //
 // A client packet A:p → R:r read from the TUN is rewritten to F:n → A:L (F an
 // unused address in the TUN subnet, n a NAT port, L a local listener port) and
 // written back into the TUN. The kernel's TCP completes the handshake with the
 // listener; on accept, n gives back R:r, which is dialed with an ordinary socket
 // and spliced to the accepted one. The listener's replies (to F) are rewritten
-// back to R:r → A:p. Android gives an accepted socket the network mark of its
+// back to R:r → A:p. IPv6 works the same way with IPv6 addresses. Android gives an accepted socket the network mark of its
 // SYN (tcp_fwmark_accept), so those replies route back into the TUN.
 type fastPath struct {
 	fd         int
@@ -26,7 +26,8 @@ type fastPath struct {
 	fakeAddr   netip.Addr // F
 	listenPort uint16     // L
 	listener   *net.TCPListener
-	dialer     *net.Dialer
+	dialer     *outbound
+	v6         bool
 	enabled    atomic.Bool
 
 	mu      sync.RWMutex
@@ -59,8 +60,12 @@ const (
 	natStale  = 10 * time.Minute // a handshake that never reached the listener
 )
 
-func newFastPath(fd int, tunAddr, fakeAddr netip.Addr, dialer *net.Dialer) (*fastPath, error) {
-	ln, err := net.ListenTCP("tcp4", &net.TCPAddr{IP: tunAddr.AsSlice(), Port: 0})
+func newFastPath(fd int, tunAddr, fakeAddr netip.Addr, dialer *outbound) (*fastPath, error) {
+	family := "tcp4"
+	if tunAddr.Is6() {
+		family = "tcp6"
+	}
+	ln, err := net.ListenTCP(family, &net.TCPAddr{IP: tunAddr.AsSlice(), Port: 0})
 	if err != nil {
 		return nil, err
 	}
@@ -71,6 +76,7 @@ func newFastPath(fd int, tunAddr, fakeAddr netip.Addr, dialer *net.Dialer) (*fas
 		listenPort: uint16(ln.Addr().(*net.TCPAddr).Port),
 		listener:   ln,
 		dialer:     dialer,
+		v6:         tunAddr.Is6(),
 		byFlow:     map[flow]*natEntry{},
 		byPort:     map[uint16]*natEntry{},
 		nextNat:    natFirst,
@@ -102,7 +108,7 @@ func (f *fastPath) probe(timeout time.Duration) bool {
 		f.mu.Unlock()
 	}()
 
-	syn := tcpSegment4(f.fakeAddr, probeNat, f.tunAddr, f.listenPort, 1, 0, flagSYN)
+	syn := f.segment(f.fakeAddr, probeNat, f.tunAddr, f.listenPort, 1, 0, flagSYN)
 	unix.Write(f.fd, syn)
 	retry := time.NewTicker(400 * time.Millisecond)
 	defer retry.Stop()
@@ -124,17 +130,49 @@ const (
 	flagACK = 0x10
 )
 
-// handle takes IPv4 TCP; it returns false for packets the userspace path should get.
+func (f *fastPath) segment(src netip.Addr, srcPort uint16, dst netip.Addr, dstPort uint16, seq, ack uint32, flags byte) []byte {
+	if f.v6 {
+		return tcpSegment6(src, srcPort, dst, dstPort, seq, ack, flags)
+	}
+	return tcpSegment4(src, srcPort, dst, dstPort, seq, ack, flags)
+}
+
+func (f *fastPath) rewrite(pkt []byte, ihl int, src netip.Addr, srcPort uint16, dst netip.Addr, dstPort uint16) {
+	if f.v6 {
+		rewrite6(pkt, src, srcPort, dst, dstPort)
+	} else {
+		rewrite4(pkt, ihl, src, srcPort, dst, dstPort)
+	}
+}
+
+// parseTCP finds the TCP segment of a packet of this fast path's family. IPv4
+// fragments and IPv6 extension headers are left to the userspace stack.
+func (f *fastPath) parseTCP(pkt []byte) (ihl int, src, dst netip.Addr, ok bool) {
+	if f.v6 {
+		if len(pkt) < 60 || pkt[0]>>4 != 6 || pkt[6] != unix.IPPROTO_TCP {
+			return 0, src, dst, false
+		}
+		return 40, netip.AddrFrom16([16]byte(pkt[8:24])), netip.AddrFrom16([16]byte(pkt[24:40])), true
+	}
+	if len(pkt) < 20 || pkt[0]>>4 != 4 || pkt[9] != unix.IPPROTO_TCP {
+		return 0, src, dst, false
+	}
+	ihl = int(pkt[0]&0x0f) * 4
+	if ihl < 20 || len(pkt) < ihl+20 || binary.BigEndian.Uint16(pkt[6:8])&0x3fff != 0 {
+		return 0, src, dst, false
+	}
+	return ihl, netip.AddrFrom4([4]byte(pkt[12:16])), netip.AddrFrom4([4]byte(pkt[16:20])), true
+}
+
+// handle takes TCP of its family; it returns false for packets the userspace path should get.
 func (f *fastPath) handle(pkt []byte) bool {
-	if !f.enabled.Load() || len(pkt) < 20 || pkt[0]>>4 != 4 || pkt[9] != unix.IPPROTO_TCP {
+	if !f.enabled.Load() {
 		return false
 	}
-	ihl := int(pkt[0]&0x0f) * 4
-	if ihl < 20 || len(pkt) < ihl+20 || binary.BigEndian.Uint16(pkt[6:8])&0x3fff != 0 {
-		return false // malformed or fragmented: leave it to the userspace stack
+	ihl, src, dst, ok := f.parseTCP(pkt)
+	if !ok {
+		return false
 	}
-	src := netip.AddrFrom4([4]byte(pkt[12:16]))
-	dst := netip.AddrFrom4([4]byte(pkt[16:20]))
 	seg := pkt[ihl:]
 	srcPort := binary.BigEndian.Uint16(seg[0:2])
 	dstPort := binary.BigEndian.Uint16(seg[2:4])
@@ -150,10 +188,10 @@ func (f *fastPath) handle(pkt []byte) bool {
 		case entry.probe:
 			if flags&(flagSYN|flagACK) == flagSYN|flagACK {
 				seq := binary.BigEndian.Uint32(seg[4:8])
-				unix.Write(f.fd, tcpSegment4(f.fakeAddr, probeNat, f.tunAddr, f.listenPort, 2, seq+1, flagACK))
+				unix.Write(f.fd, f.segment(f.fakeAddr, probeNat, f.tunAddr, f.listenPort, 2, seq+1, flagACK))
 			}
 		default:
-			rewrite4(pkt, ihl, entry.flow.dst, entry.flow.dstPort, entry.flow.src, entry.flow.srcPort)
+			f.rewrite(pkt, ihl, entry.flow.dst, entry.flow.dstPort, entry.flow.src, entry.flow.srcPort)
 			unix.Write(f.fd, pkt)
 			f.bytesDown.Add(int64(len(pkt)))
 		}
@@ -177,7 +215,7 @@ func (f *fastPath) handle(pkt []byte) bool {
 			return false // NAT ports exhausted
 		}
 	}
-	rewrite4(pkt, ihl, f.fakeAddr, entry.port, f.tunAddr, f.listenPort)
+	f.rewrite(pkt, ihl, f.fakeAddr, entry.port, f.tunAddr, f.listenPort)
 	unix.Write(f.fd, pkt)
 	f.bytesUp.Add(int64(len(pkt)))
 	return true

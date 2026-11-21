@@ -204,7 +204,7 @@ class MainActivity : FragmentActivity() {
                                 onFixShizuku = ShizukuLink::requestPermission,
                             )
                             Tab.ACTIVITY -> dev.darknet.ui.ActivityScreen()
-                            Tab.SPEED -> SpeedScreen(onRun = { lifecycleScope.launch { SpeedTest.run() } })
+                            Tab.SPEED -> SpeedScreen(active = status.isActive, onRun = { lifecycleScope.launch { SpeedTest.run() } })
                             Tab.DEVICES -> DevicesScreen(status, shizuku == ShizukuState.READY)
                             Tab.SETTINGS -> SettingsScreen(
                                 settings = settings,
@@ -222,6 +222,12 @@ class MainActivity : FragmentActivity() {
                                 onDns = { v -> scope.launch { prefs.setDns(v) } },
                                 onBand = { v -> scope.launch { prefs.setBand(v) } },
                                 onStability = { v -> scope.launch { prefs.setStabilityAlerts(v) } },
+                                onBbr = { v -> scope.launch { prefs.setBbr(v) } },
+                                onMtu = { v -> scope.launch { prefs.setMtu(v) } },
+                                onCombine = { v -> scope.launch { prefs.setCombine(v) } },
+                                onHeatLimit = { v -> scope.launch { prefs.setHeatLimit(v) } },
+                                onHeatStop = { v -> scope.launch { prefs.setHeatStop(v) } },
+                                onSpeedIcon = { v -> scope.launch { prefs.setSpeedIcon(v) } },
                                 onLock = { v ->
                                     // Confirm it's you before turning the lock on or off.
                                     authenticate(if (v) "Activar el bloqueo" else "Quitar el bloqueo", strict = v) {

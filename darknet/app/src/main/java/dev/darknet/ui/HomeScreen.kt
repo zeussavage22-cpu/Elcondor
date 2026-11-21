@@ -105,6 +105,7 @@ fun HomeScreen(
             LiveChartCard(status)
             StabilityCard()
             EngineCard(status, fastEngineEnabled)
+            CheckCard(status)
         }
     }
 }

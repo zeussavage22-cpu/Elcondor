@@ -20,6 +20,9 @@ func main() {
 	fake := flag.String("fake", "10.0.0.3", "unused address in the TUN subnet")
 	fast := flag.Bool("fast", true, "use the kernel fast path")
 	nonblock := flag.Bool("nonblock", false, "open the TUN non-blocking, as Android hands it over")
+	addr6 := flag.String("addr6", "", "TUN IPv6 address (enables the IPv6 fast path)")
+	fake6 := flag.String("fake6", "", "unused IPv6 address in the TUN prefix")
+	cc := flag.String("cc", "", "TCP congestion control for outbound sockets, e.g. bbr")
 	flag.Parse()
 
 	fd, err := unix.Open("/dev/net/tun", unix.O_RDWR, 0)
@@ -40,9 +43,15 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	s.SetCongestion(*cc)
 	fmt.Printf("engine up, fast path active: %v\n", s.FastPathActive())
+	if *addr6 != "" {
+		fmt.Printf("ipv6 fast path active: %v\n", s.EnableIPv6(*addr6, *fake6))
+	}
+	fmt.Printf("udp relay active: %v\n", s.UDPRelayActive())
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, unix.SIGTERM)
 	<-c
+	fmt.Println("stats:", s.Stats())
 	s.Stop()
 }

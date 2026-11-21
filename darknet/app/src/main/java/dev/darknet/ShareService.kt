@@ -76,6 +76,9 @@ class ShareService : Service() {
                 val options = JSONObject().put("fastEngine", settings.fastEngine).put("usb", settings.usb)
                     .put("dns", org.json.JSONArray(dnsServers(settings)))
                     .put("band", BANDS[settings.band] ?: 0)
+                    .put("mtu", settings.mtu)
+                    .put("bbr", settings.bbr)
+                    .put("combine", settings.combine)
                 val service = ShizukuLink.service()
                 publish(ShareStatus.parse(service.start(options.toString())))
                 if (mutableStatus.value.isActive) followStatus() else stopSelf()
@@ -141,8 +144,13 @@ class ShareService : Service() {
                     return@launch
                 }
                 val settings = prefs.settings.first()
+                speedIcon = settings.speedIcon
                 record(status, now)
                 announceDevices(status, settings)
+                checkHeat(settings, now)?.let { reason ->
+                    stopSharing(reason)
+                    return@launch
+                }
                 enforce(status, settings, now)?.let { reason ->
                     stopSharing(reason)
                     return@launch
@@ -188,6 +196,30 @@ class ShareService : Service() {
                 )
             }
             if (settings.quotaStop && used >= limit) return "Se acabó tu plan de ${settings.quotaGb} GB"
+        }
+        return null
+    }
+
+    private var heatWarned = false
+    private var lastHeatCheck = 0L
+
+    /** Every 30 s: warns once when the battery passes the limit; returns a reason to stop. */
+    private fun checkHeat(settings: Settings, now: Long): String? {
+        if (settings.heatLimit <= 0 || now - lastHeatCheck < 30_000) return null
+        lastHeatCheck = now
+        val battery = registerReceiver(null, android.content.IntentFilter(Intent.ACTION_BATTERY_CHANGED)) ?: return null
+        val celsius = battery.getIntExtra(android.os.BatteryManager.EXTRA_TEMPERATURE, Int.MIN_VALUE) / 10.0
+        if (celsius < -50) return null
+        if (celsius < settings.heatLimit - 2) heatWarned = false
+        if (celsius < settings.heatLimit) return null
+        if (settings.heatStop) return "El teléfono llegó a %.0f °C; deja que se enfríe".format(celsius)
+        if (!heatWarned) {
+            heatWarned = true
+            alert(
+                "El teléfono está caliente: %.0f °C".format(celsius),
+                "Quítale la funda, aléjalo del sol o del cargador rápido, o baja a 5 GHz.",
+                vibrate = true,
+            )
         }
         return null
     }
@@ -242,6 +274,8 @@ class ShareService : Service() {
         }
     }
 
+    @Volatile private var speedIcon = true
+
     private fun publish(status: ShareStatus) {
         mutableStatus.value = status
         if (status.isActive) mutableHistory.value = (mutableHistory.value + (status.speedDown to status.speedUp)).takeLast(HISTORY)
@@ -258,16 +292,19 @@ class ShareService : Service() {
             this, 1, Intent(this, ShareService::class.java).setAction(ACTION_STOP), PendingIntent.FLAG_IMMUTABLE,
         )
         val (title, text) = when (status.state) {
-            ShareStatus.State.ACTIVE -> "Compartiendo" to
-                "${status.devices.size} conectados · ${Bytes.format(status.total)} · ${Bytes.rate(status.speed)}" +
+            ShareStatus.State.ACTIVE -> "↓ ${dev.darknet.ui.mbps(status.speedDown)}   ↑ ${dev.darknet.ui.mbps(status.speedUp)}" to
+                "${status.devices.size} conectados · ${Bytes.format(status.total)} compartidos" +
                 if (status.fastPath) " · motor rápido" else ""
             ShareStatus.State.STARTING -> "Iniciando…" to "Preparando el hotspot"
             ShareStatus.State.STOPPING -> "Deteniendo…" to "Restaurando el hotspot"
             ShareStatus.State.ERROR -> "No se pudo compartir" to status.detail
             ShareStatus.State.IDLE -> "DarkNet" to "Sin compartir"
         }
+        val icon = if (status.isActive && speedIcon) SpeedIcon.of(status.speed)
+            else android.graphics.drawable.Icon.createWithResource(this, R.drawable.ic_stat_darknet)
         return Notification.Builder(this, CHANNEL)
-            .setSmallIcon(R.drawable.ic_stat_darknet)
+            .setSmallIcon(icon)
+            .setOnlyAlertOnce(true)
             .setContentTitle(title)
             .setContentText(text)
             .setContentIntent(open)

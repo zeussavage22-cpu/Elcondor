@@ -43,6 +43,7 @@ internal object TunAddresses {
     const val IPV4_PREFIX = 24
     const val FAKE_IPV4 = "192.0.2.3" // unused peer for the engine's fast path
     const val IPV6 = "2001:db8::2"
+    const val FAKE_IPV6 = "2001:db8::3"
     const val IPV6_PREFIX = 64
     const val MTU = 1500
     val DNS = listOf("1.1.1.1", "8.8.8.8", "2606:4700:4700::1111", "2001:4860:4860::8888")
@@ -56,7 +57,7 @@ internal class SystemNet(private val context: Context) {
 
     // ---- test network -------------------------------------------------------
 
-    fun createTestNetwork(dns: List<String>): TestNetwork {
+    fun createTestNetwork(dns: List<String>, mtu: Int): TestNetwork {
         val tnm = context.getSystemService(TestNetwork.TEST_NETWORK_SERVICE)
             ?: error("this phone has no test network service")
 
@@ -76,7 +77,7 @@ internal class SystemNet(private val context: Context) {
 
         val token = Binder()
         try {
-            setUpNetwork(tnm, name, v4, v6, token, dns)
+            setUpNetwork(tnm, name, v4, v6, token, dns, mtu)
             val (network, callback) = awaitNetwork(name)
             ServiceLog.info("test network available on $name")
             return TestNetwork(name, fd, network, token, callback)
@@ -86,7 +87,7 @@ internal class SystemNet(private val context: Context) {
         }
     }
 
-    private fun setUpNetwork(tnm: Any, iface: String, v4: Any, v6: Any, token: Binder, dns: List<String>) {
+    private fun setUpNetwork(tnm: Any, iface: String, v4: Any, v6: Any, token: Binder, dns: List<String>, mtu: Int) {
         if (Reflect.has(tnm, "setupTestNetwork", 3)) {
             val lp = LinkProperties()
             Reflect.call(lp, "setInterfaceName", iface)
@@ -95,7 +96,7 @@ internal class SystemNet(private val context: Context) {
             for (server in dns.ifEmpty { TunAddresses.DNS }) Reflect.call(lp, "addDnsServer", InetAddress.getByName(server))
             Reflect.call(lp, "addRoute", route("0.0.0.0", 0, iface))
             Reflect.call(lp, "addRoute", route("::", 0, iface))
-            Reflect.call(lp, "setMtu", TunAddresses.MTU)
+            Reflect.call(lp, "setMtu", mtu)
             Reflect.call(tnm, "setupTestNetwork", lp, false, token)
         } else {
             Reflect.call(tnm, "setupTestNetwork", iface, token)
@@ -131,6 +132,48 @@ internal class SystemNet(private val context: Context) {
         val ipPrefix = Reflect.newInstance("android.net.IpPrefix", InetAddress.getByName(destination), prefix)
         return Reflect.newInstance("android.net.RouteInfo", ipPrefix, null, iface)
     }
+
+    /**
+     * The MTU to use: [wanted] if it is a number, else the mobile network's own
+     * MTU as the carrier reports it (1500 when it reports none).
+     */
+    fun pickMtu(wanted: String): Pair<Int, String> {
+        wanted.toIntOrNull()?.takeIf { it in 1280..1500 }?.let { return it to "elegido" }
+        val carrier = runCatching { cm.getLinkProperties(cm.activeNetwork)?.mtu ?: 0 }.getOrDefault(0)
+        return if (carrier in 1280..1500) carrier to "de tu operadora" else TunAddresses.MTU to "estándar"
+    }
+
+    /**
+     * Follows the phone's Wi-Fi and mobile data networks with internet, so the
+     * engine can spread connections over both. Asking for mobile data keeps it
+     * up even while Wi-Fi is connected.
+     */
+    fun watchUplinks(onChange: (List<Network>) -> Unit): List<ConnectivityManager.NetworkCallback> {
+        val live = java.util.concurrent.ConcurrentHashMap<Network, Boolean>()
+        fun request(transport: Int): ConnectivityManager.NetworkCallback {
+            val callback = object : ConnectivityManager.NetworkCallback() {
+                override fun onAvailable(n: Network) { live[n] = true; onChange(live.keys.toList()) }
+                override fun onLost(n: Network) { live.remove(n); onChange(live.keys.toList()) }
+            }
+            val req = NetworkRequest.Builder()
+                .addCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                .addTransportType(transport)
+                .build()
+            cm.requestNetwork(req, callback)
+            return callback
+        }
+        return listOf(
+            request(android.net.NetworkCapabilities.TRANSPORT_WIFI),
+            request(android.net.NetworkCapabilities.TRANSPORT_CELLULAR),
+        )
+    }
+
+    fun unwatchUplinks(callbacks: List<ConnectivityManager.NetworkCallback>) {
+        callbacks.forEach { runCatching { cm.unregisterNetworkCallback(it) } }
+    }
+
+    /** The phone's default network (mobile data or Wi-Fi), for direct measurements. */
+    fun defaultNetwork(): Network? = cm.activeNetwork
 
     // ---- hotspot settings -----------------------------------------------------
 

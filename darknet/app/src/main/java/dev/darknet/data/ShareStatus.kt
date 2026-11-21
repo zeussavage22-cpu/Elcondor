@@ -20,6 +20,13 @@ data class ShareStatus(
     /** Bytes per second towards the devices (download) and from them (upload). */
     val speedDown: Long = 0,
     val speedUp: Long = 0,
+    val fastPath6: Boolean = false,
+    val udpFast: Boolean = false,
+    /** TCP congestion control the kernel uses, e.g. "bbr". */
+    val congestion: String = "",
+    val mtu: Int = 0,
+    /** Networks the engine spreads connections over (0 = not combining). */
+    val combined: Int = 0,
 ) {
     enum class State { IDLE, STARTING, ACTIVE, STOPPING, ERROR }
 
@@ -56,6 +63,11 @@ data class ShareStatus(
                 state = state,
                 detail = o.optString("detail"),
                 fastPath = o.optBoolean("fastPath"),
+                fastPath6 = o.optBoolean("fastPath6"),
+                udpFast = o.optBoolean("udpFast"),
+                congestion = o.optString("congestion"),
+                mtu = o.optInt("mtu"),
+                combined = o.optInt("combined"),
                 upstreamOk = o.optBoolean("upstreamOk"),
                 bytesUp = up,
                 bytesDown = down,

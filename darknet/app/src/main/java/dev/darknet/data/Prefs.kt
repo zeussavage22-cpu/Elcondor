@@ -41,6 +41,18 @@ data class Settings(
     val stabilityAlerts: Boolean = true,
     /** Ask for fingerprint, face or PIN to open DarkNet. */
     val lock: Boolean = false,
+    /** BBR congestion control on the engine's TCP sockets, when the phone allows it. */
+    val bbr: Boolean = true,
+    /** "auto" (the carrier's) or a number. */
+    val mtu: String = "auto",
+    /** Spread connections over Wi-Fi and mobile data at once. */
+    val combine: Boolean = false,
+    /** Warn at this battery temperature in °C; 0 = off. */
+    val heatLimit: Int = 43,
+    /** Also stop sharing at the limit. */
+    val heatStop: Boolean = false,
+    /** Show the live speed as the status-bar icon. */
+    val speedIcon: Boolean = true,
 )
 
 private val Context.store by preferencesDataStore("darknet")
@@ -62,6 +74,12 @@ class Prefs(private val context: Context) {
         val band = stringPreferencesKey("band")
         val stability = booleanPreferencesKey("stability_alerts")
         val lock = booleanPreferencesKey("lock")
+        val bbr = booleanPreferencesKey("bbr")
+        val mtu = stringPreferencesKey("mtu")
+        val combine = booleanPreferencesKey("combine")
+        val heatLimit = intPreferencesKey("heat_limit")
+        val heatStop = booleanPreferencesKey("heat_stop")
+        val speedIcon = booleanPreferencesKey("speed_icon")
     }
 
     val settings: Flow<Settings> = context.store.data.map(::read)
@@ -82,6 +100,12 @@ class Prefs(private val context: Context) {
         band = p[K.band] ?: "auto",
         stabilityAlerts = p[K.stability] ?: true,
         lock = p[K.lock] ?: false,
+        bbr = p[K.bbr] ?: true,
+        mtu = p[K.mtu] ?: "auto",
+        combine = p[K.combine] ?: false,
+        heatLimit = p[K.heatLimit] ?: 43,
+        heatStop = p[K.heatStop] ?: false,
+        speedIcon = p[K.speedIcon] ?: true,
     )
 
     suspend fun setFastEngine(value: Boolean) = context.store.edit { it[K.fast] = value }
@@ -99,6 +123,12 @@ class Prefs(private val context: Context) {
     suspend fun setBand(value: String) = context.store.edit { it[K.band] = value }
     suspend fun setStabilityAlerts(value: Boolean) = context.store.edit { it[K.stability] = value }
     suspend fun setLock(value: Boolean) = context.store.edit { it[K.lock] = value }
+    suspend fun setBbr(value: Boolean) = context.store.edit { it[K.bbr] = value }
+    suspend fun setMtu(value: String) = context.store.edit { it[K.mtu] = value }
+    suspend fun setCombine(value: Boolean) = context.store.edit { it[K.combine] = value }
+    suspend fun setHeatLimit(value: Int) = context.store.edit { it[K.heatLimit] = value }
+    suspend fun setHeatStop(value: Boolean) = context.store.edit { it[K.heatStop] = value }
+    suspend fun setSpeedIcon(value: Boolean) = context.store.edit { it[K.speedIcon] = value }
 }
 
 /** DNS servers for each choice, IPv4 and IPv6. */

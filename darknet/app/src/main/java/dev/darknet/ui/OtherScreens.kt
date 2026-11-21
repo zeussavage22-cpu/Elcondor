@@ -107,7 +107,7 @@ fun DevicesScreen(status: ShareStatus, shizukuReady: Boolean) {
 // ---- speed test ---------------------------------------------------------------
 
 @Composable
-fun SpeedScreen(onRun: () -> Unit) {
+fun SpeedScreen(active: Boolean, onRun: () -> Unit) {
     val r by SpeedTest.state.collectAsState()
     val shown = when (r.phase) {
         SpeedTest.Phase.DOWNLOAD, SpeedTest.Phase.UPLOAD -> r.liveMbps
@@ -160,6 +160,7 @@ fun SpeedScreen(onRun: () -> Unit) {
             }
         }
         if (r.phase == SpeedTest.Phase.FAILED) Text("La prueba falló: ${r.error}", style = Dn.Small)
+        CompareCard(active)
     }
 }
 
@@ -183,6 +184,12 @@ fun SettingsScreen(
     onBand: (String) -> Unit,
     onStability: (Boolean) -> Unit,
     onLock: (Boolean) -> Unit,
+    onBbr: (Boolean) -> Unit,
+    onMtu: (String) -> Unit,
+    onCombine: (Boolean) -> Unit,
+    onHeatLimit: (Int) -> Unit,
+    onHeatStop: (Boolean) -> Unit,
+    onSpeedIcon: (Boolean) -> Unit,
     onShizuku: () -> Unit,
     onShowLog: () -> Unit,
     onHideLog: () -> Unit,
@@ -196,6 +203,22 @@ fun SettingsScreen(
                 settings.fastEngine, onFastEngine,
             )
             Toggle("Compartir también por USB", "Incluye un cable USB además del hotspot Wi-Fi.", settings.usb, onUsb)
+            Toggle(
+                "BBR",
+                "El control de congestión de Google: aguanta mejor las pérdidas de la red móvil. Si tu teléfono no lo permite, se queda el normal (Comprobar te lo dice).",
+                settings.bbr, onBbr,
+            )
+            Choice(
+                "MTU",
+                "Tamaño máximo de paquete. “Automático” usa el que indica tu operadora.",
+                settings.mtu, listOf("auto", "1500", "1460", "1420", "1400", "1360", "1280"),
+                { if (it == "auto") "Automático" else it }, onMtu,
+            )
+            Toggle(
+                "Sumar Wi‑Fi y datos",
+                "Si el teléfono está conectado a un Wi‑Fi y tiene datos, reparte las conexiones entre los dos. Gasta datos móviles aunque haya Wi‑Fi.",
+                settings.combine, onCombine,
+            )
             Text("Los cambios se aplican la próxima vez que empiezas a compartir.", style = Dn.Small)
         }
 
@@ -252,6 +275,16 @@ fun SettingsScreen(
         Panel {
             Choice("Apagar si no hay nadie", "Tras este tiempo sin dispositivos conectados.", settings.idleMinutes, listOf(0, 3, 5, 10, 15, 30, 60), { if (it == 0) "Nunca" else "$it min" }, onIdle)
             Toggle("Avisos de conexión", "Notificación y vibración cuando alguien entra o sale.", settings.deviceAlerts, onAlerts)
+            Choice(
+                "Protección de temperatura",
+                "Avisa cuando la batería llega a esta temperatura.",
+                settings.heatLimit, listOf(0, 40, 42, 43, 44, 46),
+                { if (it == 0) "Desactivada" else "$it °C" }, onHeatLimit,
+            )
+            if (settings.heatLimit > 0) {
+                Toggle("Pausar al llegar al límite", "Deja de compartir para que el teléfono se enfríe.", settings.heatStop, onHeatStop)
+            }
+            Toggle("Velocidad en la barra de estado", "Muestra los Mbps en vivo como icono arriba de la pantalla.", settings.speedIcon, onSpeedIcon)
             Toggle("Avisos de estabilidad", "Te avisa si se corta el internet, cuando vuelve, o si el ping sube mucho.", settings.stabilityAlerts, onStability)
         }
 

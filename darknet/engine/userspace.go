@@ -34,10 +34,10 @@ const (
 type userspace struct {
 	stack  *stack.Stack
 	link   *channel.Endpoint
-	dialer *net.Dialer
+	dialer *outbound
 }
 
-func newUserspace(mtu uint32, dialer *net.Dialer) (*userspace, error) {
+func newUserspace(mtu uint32, dialer *outbound) (*userspace, error) {
 	s := stack.New(stack.Options{
 		NetworkProtocols: []stack.NetworkProtocolFactory{ipv4.NewProtocol, ipv6.NewProtocol},
 		TransportProtocols: []stack.TransportProtocolFactory{
