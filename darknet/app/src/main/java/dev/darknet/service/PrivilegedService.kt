@@ -240,15 +240,24 @@ class PrivilegedService(base: Context) : IDarkNetService.Stub() {
         add("UDP directo (YouTube, juegos, llamadas)", if (session.udpRelayActive()) "ok" else "warn",
             if (session.udpRelayActive()) "Sin pasar por el motor de respaldo." else "Activa el motor rápido en Ajustes.")
 
-        val tcp = runCatching {
-            tun.network.socketFactory.createSocket().use { socket ->
-                val t0 = System.nanoTime()
-                socket.connect(java.net.InetSocketAddress("1.1.1.1", 443), 4000)
-                (System.nanoTime() - t0) / 1_000_000
-            }
+        // A real request: the fast path accepts a connection inside the phone before
+        // reaching the internet, so only a response proves the whole way works.
+        val web = runCatching {
+            val t0 = System.nanoTime()
+            val c = tun.network.openConnection(java.net.URL("https://1.1.1.1/cdn-cgi/trace")) as java.net.HttpURLConnection
+            c.connectTimeout = 5000
+            c.readTimeout = 5000
+            val body = c.inputStream.use { it.readBytes().decodeToString() }
+            c.disconnect()
+            val ms = (System.nanoTime() - t0) / 1_000_000
+            val colo = body.lineSequence().firstOrNull { it.startsWith("colo=") }?.substringAfter('=')
+            ms to colo
         }
-        add("Internet a través del motor", if (tcp.isSuccess) "ok" else "fail",
-            tcp.fold({ "Conexión de prueba por el túnel: $it ms." }, { "La conexión de prueba falló: ${it.message}" }))
+        add("Internet a través del motor", if (web.isSuccess) "ok" else "fail",
+            web.fold(
+                { (ms, colo) -> "Respuesta real de internet por el túnel en $ms ms${colo?.let { " (servidor $it)" } ?: ""}." },
+                { "La petición de prueba falló: ${it.message}" },
+            ))
 
         val server = dnsServers.firstOrNull { '.' in it } ?: "1.1.1.1"
         val dns = runCatching {
@@ -270,11 +279,17 @@ class PrivilegedService(base: Context) : IDarkNetService.Stub() {
             dns.fold({ "$server respondió en $it ms." }, { "$server no respondió: ${it.message}" }))
 
         val raw = test?.interfaceName?.let(::readCounters) ?: (0L to 0L)
-        // Fast-path bytes cross the TUN twice, so the interface counts them twice.
+        // Fast-path bytes cross the TUN twice, so the interface counts them twice;
+        // the UDP relay's cross it once.
         val fastBytes = session.fastBytesUp() + session.fastBytesDown()
+        val stats = runCatching { JSONObject(session.stats()) }.getOrDefault(JSONObject())
+        val udpBytes = stats.optLong("udpUp") + stats.optLong("udpDown")
         val total = (raw.first + raw.second - fastBytes).coerceAtLeast(1)
-        val share = (fastBytes * 100 / total).coerceIn(0, 100)
-        add("Tráfico en el motor rápido", "info", "$share % de lo compartido en esta sesión.")
+        val tcpShare = (fastBytes * 100 / total).coerceIn(0, 100)
+        val udpShare = (udpBytes * 100 / total).coerceIn(0, 100)
+        val share = (tcpShare + udpShare).coerceAtMost(100)
+        add("Tráfico en el motor rápido", if (share >= 50) "ok" else "info",
+            "$share % de lo compartido en esta sesión (TCP $tcpShare %, UDP $udpShare %). El resto va por el motor de respaldo.")
         val cc = session.congestion()
         add("Control de congestión", if (cc.startsWith("bbr")) "ok" else "info",
             if (cc.isEmpty()) "Se verá cuando haya conexiones." else cc)
