@@ -155,6 +155,14 @@ class MainActivity : FragmentActivity() {
             DarkNetTheme {
                 val status by ShareService.status.collectAsState()
                 val shizuku by ShizukuLink.state.collectAsState()
+                // Until Shizuku is ready, look again every 2 s: a permission granted in
+                // Shizuku's own screen sends DarkNet no message.
+                androidx.compose.runtime.LaunchedEffect(shizuku) {
+                    while (shizuku != ShizukuState.READY) {
+                        kotlinx.coroutines.delay(2000)
+                        ShizukuLink.refresh()
+                    }
+                }
                 val settings = loaded
                 val scope0 = rememberCoroutineScope()
                 if (!settings.onboarded) {

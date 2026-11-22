@@ -64,8 +64,20 @@ fun rememberVitals(): Vitals {
         }
         context.registerReceiver(battery, IntentFilter(Intent.ACTION_BATTERY_CHANGED), Context.RECEIVER_NOT_EXPORTED)
 
-        val tm = context.getSystemService(TelephonyManager::class.java)
+        // Dual SIM or eSIM: follow the SIM that carries mobile data.
+        val tm = context.getSystemService(TelephonyManager::class.java)?.let { base ->
+            val dataSub = android.telephony.SubscriptionManager.getDefaultDataSubscriptionId()
+            if (dataSub != android.telephony.SubscriptionManager.INVALID_SUBSCRIPTION_ID) base.createForSubscriptionId(dataSub) else base
+        }
         val canReadPhone = context.checkSelfPermission(Manifest.permission.READ_PHONE_STATE) == PackageManager.PERMISSION_GRANTED
+        if (tm != null && canReadPhone) {
+            runCatching {
+                tm.signalStrength?.let { s ->
+                    val best = s.cellSignalStrengths.maxOfOrNull { it.level } ?: 0
+                    vitals = vitals.copy(signalBars = maxOf(s.level, best))
+                }
+            }
+        }
         val callback = if (tm != null && canReadPhone) {
             object : TelephonyCallback(), TelephonyCallback.SignalStrengthsListener, TelephonyCallback.DisplayInfoListener {
                 override fun onSignalStrengthsChanged(s: SignalStrength) {

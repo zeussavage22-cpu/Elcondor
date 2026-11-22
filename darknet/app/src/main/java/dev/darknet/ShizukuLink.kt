@@ -10,7 +10,10 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withTimeoutOrNull
 import rikka.shizuku.Shizuku
 
 /** Shizuku's state as the user needs to see it. */
@@ -28,7 +31,9 @@ object ShizukuLink {
     val state: StateFlow<ShizukuState> = mutableState.asStateFlow()
 
     @Volatile private var service: IDarkNetService? = null
-    private var pending: CompletableDeferred<IDarkNetService>? = null
+    @Volatile private var pending: CompletableDeferred<IDarkNetService>? = null
+    /** One bind at a time: two callers binding at once left one waiting forever. */
+    private val bindLock = Mutex()
     private lateinit var appContext: Context
 
     private val args by lazy {
@@ -59,7 +64,14 @@ object ShizukuLink {
             service = null
             refresh()
         }
-        Shizuku.addRequestPermissionResultListener { _, _ -> refresh() }
+        Shizuku.addRequestPermissionResultListener { _, result ->
+            // Trust the answer itself; asking Shizuku right away can still say "no".
+            if (result == PackageManager.PERMISSION_GRANTED && Shizuku.pingBinder()) {
+                mutableState.value = ShizukuState.READY
+            } else {
+                refresh()
+            }
+        }
         refresh()
     }
 
@@ -79,23 +91,39 @@ object ShizukuLink {
     private fun isInstalled(): Boolean =
         runCatching { appContext.packageManager.getPackageInfo(SHIZUKU_PACKAGE, 0); true }.getOrDefault(false)
 
+    private fun current(): IDarkNetService? = service?.takeIf { it.asBinder().pingBinder() }
+
     /** The privileged service, binding it if needed. */
     suspend fun service(): IDarkNetService {
-        service?.takeIf { it.asBinder().pingBinder() }?.let { return it }
-        check(state.value == ShizukuState.READY) { "Shizuku is not ready" }
+        current()?.let { return it }
+        return bindLock.withLock {
+            current()?.let { return@withLock it }
+            if (state.value != ShizukuState.READY) refresh()
+            check(state.value == ShizukuState.READY) { "Shizuku no está listo: ábrelo, actívalo y dale permiso a DarkNet." }
+            // If the first try hangs, start the service over once.
+            var bound = bindOnce() ?: run { reset(); bindOnce() } ?: error(NOT_STARTED)
+            if (runCatching { bound.version() }.getOrNull() != BuildConfig.VERSION_CODE) {
+                // A service from before an update is still running: stop it and start the new one.
+                runCatching { bound.destroy() }
+                reset()
+                bound = bindOnce() ?: error(NOT_STARTED)
+            }
+            bound
+        }
+    }
+
+    private const val NOT_STARTED = "DarkNet no pudo arrancar su servicio en Shizuku. Abre Shizuku, revisa que esté activo y vuelve a intentar."
+
+    private suspend fun bindOnce(): IDarkNetService? {
         val deferred = CompletableDeferred<IDarkNetService>()
         pending = deferred
-        Shizuku.bindUserService(args, connection)
-        val bound = withTimeout(15_000) { deferred.await() }
-        if (runCatching { bound.version() }.getOrNull() != BuildConfig.VERSION_CODE) {
-            // A service from an older install is still running: replace it.
-            runCatching { Shizuku.unbindUserService(args, connection, true) }
-            service = null
-            val fresh = CompletableDeferred<IDarkNetService>()
-            pending = fresh
-            Shizuku.bindUserService(args, connection)
-            return withTimeout(15_000) { fresh.await() }
-        }
-        return bound
+        runCatching { Shizuku.bindUserService(args, connection) }.onFailure { return null }
+        return withTimeoutOrNull(20_000) { deferred.await() }
+    }
+
+    private suspend fun reset() {
+        runCatching { Shizuku.unbindUserService(args, connection, true) }
+        service = null
+        delay(1000) // let the old process go away
     }
 }
