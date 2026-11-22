@@ -327,7 +327,11 @@ private fun VitalsRow(v: Vitals) {
         val context = androidx.compose.ui.platform.LocalContext.current
         VitalTile(
             "Señal", v.network,
-            if (v.signalBars == NO_PERMISSION) "Toca para permitir" else signalText(v.signalBars),
+            when {
+                v.signalBars == NO_PERMISSION -> "Toca para permitir"
+                v.signalDbm != null -> "${signalText(v.signalBars)} · ${v.signalDbm} dBm"
+                else -> signalText(v.signalBars)
+            },
             Modifier.weight(1f).clickable(enabled = v.signalBars == NO_PERMISSION) {
                 (context as? android.app.Activity)?.requestPermissions(arrayOf(android.Manifest.permission.READ_PHONE_STATE), 2)
             },

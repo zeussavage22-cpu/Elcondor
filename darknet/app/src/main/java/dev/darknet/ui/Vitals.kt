@@ -23,6 +23,8 @@ import androidx.compose.ui.platform.LocalContext
 data class Vitals(
     val network: String = "–",
     val signalBars: Int = -1, // 0..4, -1 unknown
+    /** Received power of the strongest cell, in dBm; null if unknown. */
+    val signalDbm: Int? = null,
     val batteryPercent: Int = -1,
     val charging: Boolean = false,
     val temperatureC: Float = Float.NaN,
@@ -70,20 +72,23 @@ fun rememberVitals(): Vitals {
             if (dataSub != android.telephony.SubscriptionManager.INVALID_SUBSCRIPTION_ID) base.createForSubscriptionId(dataSub) else base
         }
         val canReadPhone = context.checkSelfPermission(Manifest.permission.READ_PHONE_STATE) == PackageManager.PERMISSION_GRANTED
-        if (tm != null && canReadPhone) {
-            runCatching {
-                tm.signalStrength?.let { s ->
-                    val best = s.cellSignalStrengths.maxOfOrNull { it.level } ?: 0
-                    vitals = vitals.copy(signalBars = maxOf(s.level, best))
-                }
+        fun apply(s: SignalStrength) {
+            val lte = s.getCellSignalStrengths(android.telephony.CellSignalStrengthLte::class.java).firstOrNull()?.rsrp
+            val nr = s.getCellSignalStrengths(android.telephony.CellSignalStrengthNr::class.java).firstOrNull()?.ssRsrp
+            val measured = dev.darknet.data.SignalLevel.of(lte, nr)
+            vitals = if (measured != null) {
+                vitals.copy(signalBars = measured.first, signalDbm = measured.second)
+            } else {
+                vitals.copy(signalBars = maxOf(s.level, s.cellSignalStrengths.maxOfOrNull { it.level } ?: 0), signalDbm = null)
             }
+        }
+        if (tm != null && canReadPhone) {
+            runCatching { tm.signalStrength?.let(::apply) }
         }
         val callback = if (tm != null && canReadPhone) {
             object : TelephonyCallback(), TelephonyCallback.SignalStrengthsListener, TelephonyCallback.DisplayInfoListener {
                 override fun onSignalStrengthsChanged(s: SignalStrength) {
-                    // Some phones report 0 overall on 5G; the best antenna is the truth.
-                    val best = s.cellSignalStrengths.maxOfOrNull { it.level } ?: 0
-                    vitals = vitals.copy(signalBars = maxOf(s.level, best))
+                    apply(s)
                 }
 
                 override fun onDisplayInfoChanged(info: TelephonyDisplayInfo) {
