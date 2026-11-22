@@ -72,7 +72,7 @@ fun rememberVitals(): Vitals {
             if (dataSub != android.telephony.SubscriptionManager.INVALID_SUBSCRIPTION_ID) base.createForSubscriptionId(dataSub) else base
         }
         val canReadPhone = context.checkSelfPermission(Manifest.permission.READ_PHONE_STATE) == PackageManager.PERMISSION_GRANTED
-        fun apply(s: SignalStrength) {
+        fun applySignal(s: SignalStrength) {
             val lte = s.getCellSignalStrengths(android.telephony.CellSignalStrengthLte::class.java).firstOrNull()?.rsrp
             val nr = s.getCellSignalStrengths(android.telephony.CellSignalStrengthNr::class.java).firstOrNull()?.ssRsrp
             val measured = dev.darknet.data.SignalLevel.of(lte, nr)
@@ -83,12 +83,12 @@ fun rememberVitals(): Vitals {
             }
         }
         if (tm != null && canReadPhone) {
-            runCatching { tm.signalStrength?.let(::apply) }
+            runCatching { tm.signalStrength?.let(::applySignal) }
         }
         val callback = if (tm != null && canReadPhone) {
             object : TelephonyCallback(), TelephonyCallback.SignalStrengthsListener, TelephonyCallback.DisplayInfoListener {
                 override fun onSignalStrengthsChanged(s: SignalStrength) {
-                    apply(s)
+                    applySignal(s)
                 }
 
                 override fun onDisplayInfoChanged(info: TelephonyDisplayInfo) {
