@@ -132,7 +132,7 @@ class ShareService : Service() {
         if (!now.offline || before.offline || !prefs.settings.first().autoRestartData) return
         if (System.currentTimeMillis() - lastAutoRestart < 5 * 60_000) return
         lastAutoRestart = System.currentTimeMillis()
-        val r = runCatching { JSONObject(ShizukuLink.service().restartData()) }.getOrNull() ?: return
+        val r = runCatching { JSONObject(ShizukuLink.service().renewIp(1)) }.getOrNull() ?: return
         if (r.has("error")) alert("No se pudieron reiniciar los datos", r.optString("error"))
         else alert("Datos reiniciados", "Volvieron en %.0f s.".format(r.optDouble("seconds")))
     }

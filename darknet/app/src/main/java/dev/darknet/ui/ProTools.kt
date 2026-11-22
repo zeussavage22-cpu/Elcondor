@@ -284,7 +284,7 @@ fun NewIpChip() {
         ),
         label = "ipSpin",
     )
-    val steps = listOf("Intento 1 de 3: datos apagados 5 s…", "Intento 2 de 3: datos apagados 15 s…", "Intento 3 de 3: modo avión unos segundos…")
+    val steps = listOf("Modo avión 6 s…", "Misma IP: modo avión 12 s…")
     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(
             modifier = Modifier
@@ -297,7 +297,7 @@ fun NewIpChip() {
                     scope.launch {
                         var first: JSONObject? = null
                         var last = JSONObject()
-                        for (attempt in 1..3) {
+                        for (attempt in 1..2) {
                             lines = listOf(steps[attempt - 1])
                             last = withContext(Dispatchers.IO) {
                                 runCatching { JSONObject(ShizukuLink.service().renewIp(attempt)) }
@@ -326,7 +326,7 @@ fun NewIpChip() {
                             else -> {
                                 good = false
                                 lines = listOf(
-                                    "Tu operadora mantuvo la misma IP tras 3 intentos (${a4.ifEmpty { "?" }}).",
+                                    "Tu operadora mantuvo la misma IP tras 2 intentos (${a4.ifEmpty { "?" }}).",
                                     "Es una IP compartida (CGNAT): prueba de nuevo en unos minutos.",
                                 )
                             }

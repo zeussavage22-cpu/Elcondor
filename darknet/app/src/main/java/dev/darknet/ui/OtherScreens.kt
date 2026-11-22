@@ -162,7 +162,6 @@ fun SpeedScreen(active: Boolean, onRun: () -> Unit) {
         if (r.phase == SpeedTest.Phase.FAILED) Text("La prueba falló: ${r.error}", style = Dn.Small)
         CompareCard(active)
         ThrottleCard()
-        RestartDataCard()
     }
 }
 
@@ -296,7 +295,7 @@ fun SettingsScreen(
             Toggle("Velocidad en la barra de estado", "Muestra los Mbps en vivo como icono arriba de la pantalla.", settings.speedIcon, onSpeedIcon)
             Toggle(
                 "Reiniciar datos si se traban",
-                "Si el internet no responde por 15 segundos, DarkNet apaga y prende los datos móviles (como mucho cada 5 minutos).",
+                "Si el internet no responde por 15 segundos, DarkNet pone el modo avión 6 s para reconectar y vuelve a encender el hotspot (como mucho cada 5 minutos).",
                 settings.autoRestartData, onAutoRestart,
             )
             Toggle("Avisos de estabilidad", "Te avisa si se corta el internet, cuando vuelve, o si el ping sube mucho.", settings.stabilityAlerts, onStability)

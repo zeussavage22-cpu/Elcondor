@@ -392,25 +392,28 @@ class PrivilegedService(base: Context) : IDarkNetService.Stub() {
         val before6 = net.publicIp6(start)
         val t0 = System.currentTimeMillis()
         val sharing = state == "active"
-        val method: String
-        if (attempt >= 3 && !sharing) {
-            method = "modo avión 6 s"
-            ServiceLog.info("new IP: airplane mode")
+        // Only a full radio restart makes the carrier hand out a new IP (turning
+        // data off and on keeps the session), so this uses airplane mode.
+        val offMs = if (attempt <= 1) 6000L else 12_000L
+        var method = "modo avión ${offMs / 1000} s"
+        ServiceLog.info("new IP: $method${if (sharing) ", hotspot restarts after" else ""}")
+        val airplane = runCatching {
             net.setAirplaneMode(true)
-            try { Thread.sleep(6000) } finally { net.setAirplaneMode(false) }
-        } else {
-            val offMs = when (attempt) { 1 -> 5000L; 2 -> 15_000L; else -> 30_000L }
-            method = "datos apagados ${offMs / 1000} s"
-            ServiceLog.info("new IP: $method")
+            try { Thread.sleep(offMs) } finally { net.setAirplaneMode(false) }
+        }
+        if (airplane.isFailure) {
+            ServiceLog.warn("airplane mode refused (${airplane.exceptionOrNull()?.message}); turning data off instead")
+            method = "datos apagados 15 s"
             net.setMobileData(false)
             try {
-                if (!net.awaitCellularGone(8000)) ServiceLog.warn("mobile data did not go down")
-                Thread.sleep(offMs)
+                net.awaitCellularGone(8000)
+                Thread.sleep(15_000)
             } finally {
                 net.setMobileData(true)
             }
         }
         val cell = net.awaitCellular(45_000) ?: error("los datos no volvieron en 45 s; revísalos en los ajustes")
+        if (sharing && airplane.isSuccess) restartHotspot()
         val seconds = (System.currentTimeMillis() - t0) / 1000.0
         // The new session can take a moment before IPv6 routes.
         var after6 = net.publicIp6(cell)
@@ -425,6 +428,21 @@ class PrivilegedService(base: Context) : IDarkNetService.Stub() {
         runCatching { net.setAirplaneMode(false) }
         runCatching { net.setMobileData(true) } // never leave the phone offline
         JSONObject().put("error", it.message ?: it.javaClass.simpleName).toString()
+    }
+
+    /** Airplane mode stops the hotspot: bring it back on DarkNet's network. */
+    private fun restartHotspot() {
+        synchronized(lock) {
+        if (state != "active") return
+        runCatching {
+            net.preferTestNetworks(true)
+            net.stopTethering(SystemNet.TETHERING_WIFI)
+            Thread.sleep(600)
+            net.startTethering(SystemNet.TETHERING_WIFI)?.let { error(it) }
+            if (usb) net.startTethering(SystemNet.TETHERING_USB)
+            ServiceLog.info("hotspot back on after airplane mode")
+        }.onFailure { ServiceLog.error("could not restart the hotspot", it) }
+        }
     }
 
     override fun setNetwork(handle: Long) {
