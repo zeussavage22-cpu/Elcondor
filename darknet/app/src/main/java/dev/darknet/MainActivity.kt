@@ -259,7 +259,7 @@ class MainActivity : FragmentActivity() {
 
     override fun onResume() {
         super.onResume()
-        ShizukuLink.refresh()
+        ShizukuLink.onAppResumed()
     }
 
     /** If sharing was left running (the app was closed), pick its status back up. */

@@ -91,6 +91,10 @@ object ShizukuLink {
      */
     private fun restartIfStillRefused() {
         if (shizukuSaysGranted() || ShareService.status.value.isActive || ShareService.status.value.isBusy) return
+        restartApp()
+    }
+
+    private fun restartApp() {
         val launch = appContext.packageManager.getLaunchIntentForPackage(appContext.packageName) ?: return
         launch.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK)
         appContext.startActivity(launch)
@@ -106,8 +110,31 @@ object ShizukuLink {
         }
     }
 
+    /** When the person last tapped "Conceder permiso" (elapsed realtime), 0 if not pending. */
+    @Volatile private var askedAt = 0L
+
     fun requestPermission() {
+        askedAt = android.os.SystemClock.elapsedRealtime()
         runCatching { Shizuku.requestPermission(PERMISSION_REQUEST) }
+    }
+
+    /**
+     * Called when DarkNet comes back to the screen. A permission given inside the
+     * Shizuku app reaches a running DarkNet only after a restart, so if the person
+     * just went to give it and DarkNet still sees "no", restart once.
+     */
+    fun onAppResumed() {
+        refresh()
+        val asked = askedAt
+        if (asked == 0L || state.value != ShizukuState.NO_PERMISSION) return
+        if (android.os.SystemClock.elapsedRealtime() - asked > 5 * 60_000) { askedAt = 0; return }
+        askedAt = 0
+        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+            refresh()
+            if (state.value == ShizukuState.NO_PERMISSION &&
+                !ShareService.status.value.isActive && !ShareService.status.value.isBusy
+            ) restartApp()
+        }, 800)
     }
 
     private fun isInstalled(): Boolean =
