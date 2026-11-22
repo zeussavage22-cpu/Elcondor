@@ -30,6 +30,12 @@ interface IDarkNetService {
     // (the phone's own network): JSON {"mbps","bytes","ms"} or {"error"}.
     String speedTest(String mode) = 9;
 
+    // Turns mobile data off and on again: JSON {"seconds","before","after"} (public IPs) or {"error"}.
+    String restartData() = 10;
+
+    // Like speedTest, from a given URL (streams ask for consecutive byte ranges).
+    String speedTestUrl(String mode, String url) = 11;
+
     // Shizuku's reserved code: kill the service process.
     void destroy() = 16777114;
 }

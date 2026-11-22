@@ -228,6 +228,8 @@ class MainActivity : FragmentActivity() {
                                 onHeatLimit = { v -> scope.launch { prefs.setHeatLimit(v) } },
                                 onHeatStop = { v -> scope.launch { prefs.setHeatStop(v) } },
                                 onSpeedIcon = { v -> scope.launch { prefs.setSpeedIcon(v) } },
+                                onVpnLock = { v -> scope.launch { prefs.setVpnLock(v) } },
+                                onAutoRestart = { v -> scope.launch { prefs.setAutoRestartData(v) } },
                                 onLock = { v ->
                                     // Confirm it's you before turning the lock on or off.
                                     authenticate(if (v) "Activar el bloqueo" else "Quitar el bloqueo", strict = v) {

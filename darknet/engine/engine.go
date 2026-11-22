@@ -184,6 +184,12 @@ func (s *Session) SetNetwork(handle int64) {
 	}
 }
 
+// SetBlocked turns the kill switch on or off: while on, no new connection
+// leaves the phone (used when the VPN DarkNet must go through drops).
+func (s *Session) SetBlocked(blocked bool) {
+	s.out.blocked.Store(blocked)
+}
+
 // SetNetworks spreads new connections over several Android networks, given as
 // comma-separated network handles ("" goes back to the default network).
 func (s *Session) SetNetworks(handles string) {

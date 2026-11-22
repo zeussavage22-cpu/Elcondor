@@ -146,3 +146,11 @@ func TestParseHandles(t *testing.T) {
 		t.Fatalf("got %v", got)
 	}
 }
+
+func TestBlockedOutboundRefuses(t *testing.T) {
+	o := newOutbound()
+	o.blocked.Store(true)
+	if _, err := o.Dial("tcp", "127.0.0.1:9"); err != errBlocked {
+		t.Fatalf("got %v", err)
+	}
+}

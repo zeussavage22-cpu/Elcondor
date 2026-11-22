@@ -30,6 +30,7 @@ type outbound struct {
 	handles  []uint64
 	dials    map[uint64]*atomic.Int64
 	next     atomic.Uint32
+	blocked  atomic.Bool // refuse every new connection (kill switch)
 	cc       atomic.Value // requested algorithm, string
 	ccActive atomic.Value // what the kernel actually uses, string
 }
@@ -66,8 +67,14 @@ func (o *outbound) networks() []uint64 {
 	return o.handles
 }
 
+// errBlocked is what dials get while the kill switch is on.
+var errBlocked = errors.New("outbound traffic is blocked")
+
 // Dial connects to addr, choosing the network as described on outbound.
 func (o *outbound) Dial(network, addr string) (net.Conn, error) {
+	if o.blocked.Load() {
+		return nil, errBlocked
+	}
 	nets := o.networks()
 	timeout := dialTimeout
 	if len(nets) > 1 {

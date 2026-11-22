@@ -45,6 +45,9 @@ class PrivilegedService(base: Context) : IDarkNetService.Stub() {
     @Volatile private var mtu = TunAddresses.MTU
     @Volatile private var mtuSource = ""
     @Volatile private var dnsServers: List<String> = emptyList()
+    private var vpnWatch: android.net.ConnectivityManager.NetworkCallback? = null
+    /** "" (not required), "on" (going out through the VPN) or "waiting" (blocked, no VPN). */
+    @Volatile private var vpn = ""
 
     init {
         ServiceLog.info(
@@ -62,7 +65,8 @@ class PrivilegedService(base: Context) : IDarkNetService.Stub() {
         usb = opts.optBoolean("usb", false)
         val band = opts.optInt("band", 0)
         val bbr = opts.optBoolean("bbr", true)
-        val combine = opts.optBoolean("combine", false)
+        val vpnLock = opts.optBoolean("vpnLock", false)
+        val combine = opts.optBoolean("combine", false) && !vpnLock
         val dns = opts.optJSONArray("dns")?.let { a -> List(a.length()) { a.getString(it) } }.orEmpty()
         state = "starting"
         detail = ""
@@ -89,6 +93,23 @@ class PrivilegedService(base: Context) : IDarkNetService.Stub() {
                 val v6 = session.enableIPv6(TunAddresses.IPV6, TunAddresses.FAKE_IPV6)
                 ServiceLog.info("IPv6 fast path: ${if (v6) "ACTIVE" else "not available, IPv6 uses the userspace path"}")
                 ServiceLog.info("UDP relay: ${if (session.udpRelayActive()) "ACTIVE" else "off"}")
+            }
+            if (vpnLock) {
+                // Kill switch first: nothing leaves until the VPN is there.
+                session.setBlocked(true)
+                vpn = "waiting"
+                vpnWatch = net.watchVpn { n ->
+                    if (n != null) {
+                        session.setNetwork(n.networkHandle)
+                        session.setBlocked(false)
+                        vpn = "on"
+                        ServiceLog.info("VPN up: going out through it")
+                    } else {
+                        session.setBlocked(true)
+                        vpn = "waiting"
+                        ServiceLog.warn("VPN down: blocking traffic until it returns")
+                    }
+                }
             }
             if (combine) {
                 uplinks = net.watchUplinks { nets ->
@@ -151,6 +172,9 @@ class PrivilegedService(base: Context) : IDarkNetService.Stub() {
     }
 
     private fun teardown() {
+        vpnWatch?.let { net.unwatchUplinks(listOf(it)) }
+        vpnWatch = null
+        vpn = ""
         net.unwatchUplinks(uplinks)
         uplinks = emptyList()
         combined = 0
@@ -191,6 +215,7 @@ class PrivilegedService(base: Context) : IDarkNetService.Stub() {
             .put("congestion", session?.congestion().orEmpty())
             .put("mtu", if (session != null) mtu else 0)
             .put("combined", combined)
+            .put("vpn", vpn)
             .put("upstreamOk", upstream != null && upstream == test?.network)
             .put("up", up)
             .put("down", down)
@@ -294,6 +319,11 @@ class PrivilegedService(base: Context) : IDarkNetService.Stub() {
         add("Control de congestión", if (cc.startsWith("bbr")) "ok" else "info",
             if (cc.isEmpty()) "Se verá cuando haya conexiones." else cc)
         add("MTU", "info", "$mtu ($mtuSource)")
+        when (vpn) {
+            "on" -> add("Salida por tu VPN", "ok", "Todo sale por la VPN; si se cae, DarkNet bloquea el tráfico.")
+            "waiting" -> add("Salida por tu VPN", "fail",
+                "No hay VPN que DarkNet pueda usar: nada sale. Conecta tu VPN, y si ya está conectada, quítale el túnel dividido para que cubra todas las apps.")
+        }
         if (uplinks.isNotEmpty()) {
             add("Sumar Wi‑Fi y datos", if (combined >= 2) "ok" else "warn",
                 if (combined >= 2) "Repartiendo conexiones entre $combined redes." else "Solo hay $combined red disponible ahora.")
@@ -301,17 +331,25 @@ class PrivilegedService(base: Context) : IDarkNetService.Stub() {
         return out.toString()
     }
 
-    override fun speedTest(mode: String?): String = runCatching {
+    override fun speedTest(mode: String?): String =
+        speedTestUrl(mode, "https://speed.cloudflare.com/__down?bytes=$SPEED_BYTES_PER_STREAM")
+
+    override fun speedTestUrl(mode: String?, url: String?): String = runCatching {
         val network = if (mode == "engine") test?.network ?: error("Empieza a compartir primero") else net.defaultNetwork() ?: error("Sin red")
         val bytes = java.util.concurrent.atomic.AtomicLong()
         val deadline = System.currentTimeMillis() + SPEED_MS
         val t0 = System.currentTimeMillis()
-        val threads = List(4) {
+        val threads = List(4) { stream ->
             Thread {
                 runCatching {
-                    val c = network.openConnection(java.net.URL("https://speed.cloudflare.com/__down?bytes=$SPEED_BYTES_PER_STREAM")) as java.net.HttpURLConnection
+                    val c = network.openConnection(java.net.URL(url)) as java.net.HttpURLConnection
                     c.connectTimeout = 5000
                     c.readTimeout = 5000
+                    if ("speed.cloudflare.com" !in url.orEmpty()) {
+                        // A real file: each stream takes its own slice.
+                        val from = stream.toLong() * SPEED_BYTES_PER_STREAM
+                        c.setRequestProperty("Range", "bytes=$from-${from + SPEED_BYTES_PER_STREAM - 1}")
+                    }
                     c.inputStream.use { input ->
                         val buf = ByteArray(64 shl 10)
                         while (System.currentTimeMillis() < deadline) {
@@ -329,6 +367,24 @@ class PrivilegedService(base: Context) : IDarkNetService.Stub() {
         if (bytes.get() == 0L) error("No se pudo descargar")
         JSONObject().put("mbps", bytes.get() * 8.0 / 1000 / ms).put("bytes", bytes.get()).put("ms", ms).toString()
     }.getOrElse { JSONObject().put("error", it.message ?: it.javaClass.simpleName).toString() }
+
+    override fun restartData(): String = runCatching {
+        val before = net.awaitCellular(2000)?.let(net::publicIp)
+        val t0 = System.currentTimeMillis()
+        ServiceLog.info("restarting mobile data")
+        net.setMobileData(false)
+        Thread.sleep(1500)
+        net.setMobileData(true)
+        val cell = net.awaitCellular(30_000) ?: error("los datos no volvieron en 30 s; revísalos en los ajustes")
+        val seconds = (System.currentTimeMillis() - t0) / 1000.0
+        val after = net.publicIp(cell)
+        ServiceLog.info("mobile data back after %.1f s".format(seconds))
+        JSONObject().put("seconds", seconds).put("before", before ?: "").put("after", after ?: "").toString()
+    }.getOrElse {
+        ServiceLog.error("restart mobile data", it)
+        runCatching { net.setMobileData(true) } // never leave data off
+        JSONObject().put("error", it.message ?: it.javaClass.simpleName).toString()
+    }
 
     override fun setNetwork(handle: Long) {
         engineSession?.setNetwork(handle)
@@ -350,7 +406,7 @@ class PrivilegedService(base: Context) : IDarkNetService.Stub() {
         const val SHELL_UID = 2000
         const val SHELL_PACKAGE = "com.android.shell"
         const val SPEED_MS = 6000L
-        const val SPEED_BYTES_PER_STREAM = 25_000_000
+        const val SPEED_BYTES_PER_STREAM = 12_000_000
 
         /**
          * Shizuku gives this process a context named after DarkNet's package, but the

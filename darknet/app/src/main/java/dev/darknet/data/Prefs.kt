@@ -53,6 +53,10 @@ data class Settings(
     val heatStop: Boolean = false,
     /** Show the live speed as the status-bar icon. */
     val speedIcon: Boolean = true,
+    /** Only go out through the phone's VPN; block everything when it drops. */
+    val vpnLock: Boolean = false,
+    /** Restart mobile data by itself when the connection gets stuck. */
+    val autoRestartData: Boolean = false,
 )
 
 private val Context.store by preferencesDataStore("darknet")
@@ -80,6 +84,8 @@ class Prefs(private val context: Context) {
         val heatLimit = intPreferencesKey("heat_limit")
         val heatStop = booleanPreferencesKey("heat_stop")
         val speedIcon = booleanPreferencesKey("speed_icon")
+        val vpnLock = booleanPreferencesKey("vpn_lock")
+        val autoRestart = booleanPreferencesKey("auto_restart_data")
     }
 
     val settings: Flow<Settings> = context.store.data.map(::read)
@@ -106,6 +112,8 @@ class Prefs(private val context: Context) {
         heatLimit = p[K.heatLimit] ?: 43,
         heatStop = p[K.heatStop] ?: false,
         speedIcon = p[K.speedIcon] ?: true,
+        vpnLock = p[K.vpnLock] ?: false,
+        autoRestartData = p[K.autoRestart] ?: false,
     )
 
     suspend fun setFastEngine(value: Boolean) = context.store.edit { it[K.fast] = value }
@@ -129,6 +137,8 @@ class Prefs(private val context: Context) {
     suspend fun setHeatLimit(value: Int) = context.store.edit { it[K.heatLimit] = value }
     suspend fun setHeatStop(value: Boolean) = context.store.edit { it[K.heatStop] = value }
     suspend fun setSpeedIcon(value: Boolean) = context.store.edit { it[K.speedIcon] = value }
+    suspend fun setVpnLock(value: Boolean) = context.store.edit { it[K.vpnLock] = value }
+    suspend fun setAutoRestartData(value: Boolean) = context.store.edit { it[K.autoRestart] = value }
 }
 
 /** DNS servers for each choice, IPv4 and IPv6. */

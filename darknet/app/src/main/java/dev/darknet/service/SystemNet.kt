@@ -172,6 +172,67 @@ internal class SystemNet(private val context: Context) {
         callbacks.forEach { runCatching { cm.unregisterNetworkCallback(it) } }
     }
 
+    /**
+     * Follows the phone's VPN network. [onChange] gets the VPN, or null when there is
+     * none or this process may not use it (a VPN that leaves DarkNet out).
+     */
+    fun watchVpn(onChange: (Network?) -> Unit): ConnectivityManager.NetworkCallback {
+        val callback = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(n: Network) = onChange(n)
+            override fun onLost(n: Network) = onChange(null)
+        }
+        val req = NetworkRequest.Builder()
+            .addTransportType(android.net.NetworkCapabilities.TRANSPORT_VPN)
+            .removeCapability(android.net.NetworkCapabilities.NET_CAPABILITY_NOT_VPN)
+            .addCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            .build()
+        cm.registerNetworkCallback(req, callback)
+        return callback
+    }
+
+    /** Turns mobile data off and back on, the way the quick-settings tile does. */
+    fun setMobileData(on: Boolean) {
+        runCatching {
+            val tm = context.getSystemService(android.telephony.TelephonyManager::class.java)
+            tm.setDataEnabledForReason(android.telephony.TelephonyManager.DATA_ENABLED_REASON_USER, on)
+        }.recoverCatching {
+            val p = Runtime.getRuntime().exec(arrayOf("svc", "data", if (on) "enable" else "disable"))
+            check(p.waitFor() == 0) { "svc data failed" }
+        }.getOrThrow()
+    }
+
+    /** Waits for mobile data with working internet; null on timeout. */
+    fun awaitCellular(timeoutMs: Long): Network? {
+        val found = CountDownLatch(1)
+        var network: Network? = null
+        val callback = object : ConnectivityManager.NetworkCallback() {
+            override fun onCapabilitiesChanged(n: Network, caps: android.net.NetworkCapabilities) {
+                if (caps.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_VALIDATED)) {
+                    network = n
+                    found.countDown()
+                }
+            }
+        }
+        val req = NetworkRequest.Builder()
+            .addCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            .addTransportType(android.net.NetworkCapabilities.TRANSPORT_CELLULAR)
+            .build()
+        cm.registerNetworkCallback(req, callback)
+        found.await(timeoutMs, TimeUnit.MILLISECONDS)
+        runCatching { cm.unregisterNetworkCallback(callback) }
+        return network
+    }
+
+    /** The public IP seen from [network], via Cloudflare's trace page. */
+    fun publicIp(network: Network): String? = runCatching {
+        val c = network.openConnection(java.net.URL("https://1.1.1.1/cdn-cgi/trace")) as java.net.HttpURLConnection
+        c.connectTimeout = 5000
+        c.readTimeout = 5000
+        val body = c.inputStream.use { it.readBytes().decodeToString() }
+        c.disconnect()
+        body.lineSequence().firstOrNull { it.startsWith("ip=") }?.substringAfter('=')
+    }.getOrNull()
+
     /** The phone's default network (mobile data or Wi-Fi), for direct measurements. */
     fun defaultNetwork(): Network? = cm.activeNetwork
 

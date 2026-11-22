@@ -79,6 +79,7 @@ class ShareService : Service() {
                     .put("mtu", settings.mtu)
                     .put("bbr", settings.bbr)
                     .put("combine", settings.combine)
+                    .put("vpnLock", settings.vpnLock)
                 val service = ShizukuLink.service()
                 publish(ShareStatus.parse(service.start(options.toString())))
                 if (mutableStatus.value.isActive) followStatus() else stopSelf()
@@ -107,9 +108,14 @@ class ShareService : Service() {
                 val before = mutableHealth.value
                 val now = before.add(Health.ping())
                 mutableHealth.value = now
+                autoRestart(before, now)
                 if (prefs.settings.first().stabilityAlerts) {
                     when {
-                        now.offline && !before.offline -> alert("Se cortó el internet", "Tus datos móviles no responden; DarkNet sigue esperando.", vibrate = true)
+                        now.offline && !before.offline -> alert(
+                            "Se cortó el internet",
+                            if (prefs.settings.first().autoRestartData) "Tus datos no responden: DarkNet los va a reiniciar." else "Tus datos móviles no responden; DarkNet sigue esperando.",
+                            vibrate = true,
+                        )
                         !now.offline && before.offline -> alert("Volvió el internet", "La conexión respondió de nuevo.")
                         now.slow && !before.slow -> alert("Conexión lenta", "El ping lleva un rato por encima de 300 ms.")
                     }
@@ -117,6 +123,18 @@ class ShareService : Service() {
                 delay(5000)
             }
         }
+    }
+
+    private var lastAutoRestart = 0L
+
+    /** When the connection stays dead, restarts mobile data (at most every 5 minutes). */
+    private suspend fun autoRestart(before: Health, now: Health) {
+        if (!now.offline || before.offline || !prefs.settings.first().autoRestartData) return
+        if (System.currentTimeMillis() - lastAutoRestart < 5 * 60_000) return
+        lastAutoRestart = System.currentTimeMillis()
+        val r = runCatching { JSONObject(ShizukuLink.service().restartData()) }.getOrNull() ?: return
+        if (r.has("error")) alert("No se pudieron reiniciar los datos", r.optString("error"))
+        else alert("Datos reiniciados", "Volvieron en %.0f s.".format(r.optDouble("seconds")))
     }
 
     private fun followStatus() {

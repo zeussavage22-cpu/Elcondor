@@ -23,6 +23,7 @@ func main() {
 	addr6 := flag.String("addr6", "", "TUN IPv6 address (enables the IPv6 fast path)")
 	fake6 := flag.String("fake6", "", "unused IPv6 address in the TUN prefix")
 	cc := flag.String("cc", "", "TCP congestion control for outbound sockets, e.g. bbr")
+	block := flag.Bool("block", false, "start with the kill switch on")
 	flag.Parse()
 
 	fd, err := unix.Open("/dev/net/tun", unix.O_RDWR, 0)
@@ -44,6 +45,7 @@ func main() {
 		panic(err)
 	}
 	s.SetCongestion(*cc)
+	s.SetBlocked(*block)
 	fmt.Printf("engine up, fast path active: %v\n", s.FastPathActive())
 	if *addr6 != "" {
 		fmt.Printf("ipv6 fast path active: %v\n", s.EnableIPv6(*addr6, *fake6))

@@ -285,6 +285,15 @@ private fun EngineCard(status: ShareStatus, fastEngineEnabled: Boolean) {
                 else -> "El motor rápido está desactivado en Ajustes."
             },
         )
+        if (status.vpn.isNotEmpty()) {
+            StatusLine(
+                icon = Icons.Filled.Shield,
+                tint = if (status.vpn == "on") Dn.Green else Dn.Red,
+                title = if (status.vpn == "on") "Saliendo por tu VPN" else "Bloqueado: esperando la VPN",
+                subtitle = if (status.vpn == "on") "Si la VPN se cae, DarkNet bloquea el tráfico."
+                else "Nada sale hasta que tu VPN se conecte. Si ya está conectada, quítale el túnel dividido.",
+            )
+        }
         StatusLine(
             icon = Icons.Filled.Shield,
             tint = if (status.upstreamOk) Dn.Green else Dn.Amber,

@@ -27,6 +27,8 @@ data class ShareStatus(
     val mtu: Int = 0,
     /** Networks the engine spreads connections over (0 = not combining). */
     val combined: Int = 0,
+    /** "" (no VPN lock), "on" or "waiting" (blocked until the VPN connects). */
+    val vpn: String = "",
 ) {
     enum class State { IDLE, STARTING, ACTIVE, STOPPING, ERROR }
 
@@ -68,6 +70,7 @@ data class ShareStatus(
                 congestion = o.optString("congestion"),
                 mtu = o.optInt("mtu"),
                 combined = o.optInt("combined"),
+                vpn = o.optString("vpn"),
                 upstreamOk = o.optBoolean("upstreamOk"),
                 bytesUp = up,
                 bytesDown = down,

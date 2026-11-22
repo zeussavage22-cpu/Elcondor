@@ -67,5 +67,18 @@ check() { # mode
 
 check true
 check false
+
+# Kill switch: with outbound blocked, nothing may reach the server.
+ip netns exec phone "$ENGINE" -fast=true -nonblock=true -block > "$LAB/engine.log" 2>&1 &
+pid=$!
+sleep 3
+if ip netns exec cli curl -s -m 5 -o /dev/null http://203.0.113.2:8080/; then
+  echo "FAIL: traffic got out with the kill switch on"; kill $pid; exit 1
+fi
+if ip netns exec cli timeout 8 python3 "$LAB/udpcheck.py" client 203.0.113.2 9000 50; then
+  echo "FAIL: UDP got out with the kill switch on"; kill $pid; exit 1
+fi
+echo "OK kill switch: nothing leaves while blocked"
+kill -INT $pid; wait $pid 2>/dev/null || true
 kill $PIDS
 ./lab.sh down

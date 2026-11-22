@@ -161,6 +161,8 @@ fun SpeedScreen(active: Boolean, onRun: () -> Unit) {
         }
         if (r.phase == SpeedTest.Phase.FAILED) Text("La prueba falló: ${r.error}", style = Dn.Small)
         CompareCard(active)
+        ThrottleCard()
+        RestartDataCard()
     }
 }
 
@@ -190,6 +192,8 @@ fun SettingsScreen(
     onHeatLimit: (Int) -> Unit,
     onHeatStop: (Boolean) -> Unit,
     onSpeedIcon: (Boolean) -> Unit,
+    onVpnLock: (Boolean) -> Unit,
+    onAutoRestart: (Boolean) -> Unit,
     onShizuku: () -> Unit,
     onShowLog: () -> Unit,
     onHideLog: () -> Unit,
@@ -245,6 +249,11 @@ fun SettingsScreen(
                 "Traduce los nombres de las páginas. “Automático” mide cuál responde más rápido en tu red cada vez que empiezas a compartir.",
                 settings.dns, dev.darknet.data.DnsChoice.labels.keys.toList(), { dev.darknet.data.DnsChoice.labels[it] ?: it }, onDns,
             )
+            Toggle(
+                "Salir solo por tu VPN",
+                "Lo compartido sale por la VPN del teléfono. Si la VPN se cae o no está conectada, DarkNet bloquea todo en vez de salir sin protección. Tu VPN debe cubrir todas las apps (sin túnel dividido).",
+                settings.vpnLock, onVpnLock,
+            )
             if (settings.dns == "auto" && settings.dnsAutoResult.isNotEmpty()) {
                 Text("Última elección: ${settings.dnsAutoResult}", style = Dn.Small.copy(color = Dn.Cyan))
             }
@@ -285,6 +294,11 @@ fun SettingsScreen(
                 Toggle("Pausar al llegar al límite", "Deja de compartir para que el teléfono se enfríe.", settings.heatStop, onHeatStop)
             }
             Toggle("Velocidad en la barra de estado", "Muestra los Mbps en vivo como icono arriba de la pantalla.", settings.speedIcon, onSpeedIcon)
+            Toggle(
+                "Reiniciar datos si se traban",
+                "Si el internet no responde por 15 segundos, DarkNet apaga y prende los datos móviles (como mucho cada 5 minutos).",
+                settings.autoRestartData, onAutoRestart,
+            )
             Toggle("Avisos de estabilidad", "Te avisa si se corta el internet, cuando vuelve, o si el ping sube mucho.", settings.stabilityAlerts, onStability)
         }
 
