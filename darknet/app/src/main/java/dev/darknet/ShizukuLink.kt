@@ -65,9 +65,12 @@ object ShizukuLink {
             refresh()
         }
         Shizuku.addRequestPermissionResultListener { _, result ->
-            // Trust the answer itself; asking Shizuku right away can still say "no".
-            if (result == PackageManager.PERMISSION_GRANTED && Shizuku.pingBinder()) {
+            if (result == PackageManager.PERMISSION_GRANTED) {
+                // Trust the answer itself: Shizuku can keep telling this process "no"
+                // for a while, which is why the app used to need a restart.
+                grantedHere = true
                 mutableState.value = ShizukuState.READY
+                android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(::restartIfStillRefused, 1200)
             } else {
                 refresh()
             }
@@ -75,11 +78,30 @@ object ShizukuLink {
         refresh()
     }
 
+    /** The person allowed DarkNet in Shizuku's dialog during this run of the app. */
+    @Volatile private var grantedHere = false
+
+    private fun shizukuSaysGranted(): Boolean =
+        runCatching { Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED }.getOrDefault(false)
+
+    /**
+     * If Shizuku still refuses this process after the person said yes, start the app
+     * over (what closing and opening it did by hand). Never while sharing, so the
+     * hotspot isn't touched.
+     */
+    private fun restartIfStillRefused() {
+        if (shizukuSaysGranted() || ShareService.status.value.isActive || ShareService.status.value.isBusy) return
+        val launch = appContext.packageManager.getLaunchIntentForPackage(appContext.packageName) ?: return
+        launch.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK)
+        appContext.startActivity(launch)
+        Runtime.getRuntime().exit(0)
+    }
+
     fun refresh() {
         mutableState.value = when {
             !Shizuku.pingBinder() -> if (isInstalled()) ShizukuState.NOT_RUNNING else ShizukuState.NOT_INSTALLED
             Shizuku.isPreV11() -> ShizukuState.NOT_RUNNING
-            Shizuku.checkSelfPermission() != PackageManager.PERMISSION_GRANTED -> ShizukuState.NO_PERMISSION
+            !grantedHere && !shizukuSaysGranted() -> ShizukuState.NO_PERMISSION
             else -> ShizukuState.READY
         }
     }
