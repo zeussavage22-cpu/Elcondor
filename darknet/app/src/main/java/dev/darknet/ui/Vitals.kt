@@ -28,12 +28,27 @@ data class Vitals(
     val temperatureC: Float = Float.NaN,
 )
 
+/** signalBars when DarkNet may not read the phone state. */
+const val NO_PERMISSION = -2
+
 @Composable
 fun rememberVitals(): Vitals {
     val context = LocalContext.current
     var vitals by remember { mutableStateOf(Vitals()) }
 
-    DisposableEffect(Unit) {
+    // Re-run when the app comes back, so a permission granted meanwhile takes effect.
+    val lifecycle = androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle
+    var resumed by remember { mutableStateOf(0) }
+    DisposableEffect(lifecycle) {
+        val obs = androidx.lifecycle.LifecycleEventObserver { _, e ->
+            if (e == androidx.lifecycle.Lifecycle.Event.ON_RESUME) resumed++
+        }
+        lifecycle.addObserver(obs)
+        onDispose { lifecycle.removeObserver(obs) }
+    }
+
+    // While the permission is missing, check again every time the app comes back.
+    DisposableEffect(if (vitals.signalBars == NO_PERMISSION) resumed else -1) {
         val battery = object : BroadcastReceiver() {
             override fun onReceive(c: Context, i: Intent) {
                 val level = i.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
@@ -65,7 +80,7 @@ fun rememberVitals(): Vitals {
             null
         }
         if (tm != null && !canReadPhone) {
-            runCatching { vitals = vitals.copy(signalBars = tm.signalStrength?.level ?: -1) }
+            vitals = vitals.copy(signalBars = NO_PERMISSION)
         }
 
         onDispose {

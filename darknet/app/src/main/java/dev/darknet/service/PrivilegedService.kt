@@ -373,7 +373,7 @@ class PrivilegedService(base: Context) : IDarkNetService.Stub() {
         val t0 = System.currentTimeMillis()
         ServiceLog.info("restarting mobile data")
         net.setMobileData(false)
-        Thread.sleep(1500)
+        Thread.sleep(3000) // long enough that the carrier drops the old session
         net.setMobileData(true)
         val cell = net.awaitCellular(30_000) ?: error("los datos no volvieron en 30 s; revísalos en los ajustes")
         val seconds = (System.currentTimeMillis() - t0) / 1000.0

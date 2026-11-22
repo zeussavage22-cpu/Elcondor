@@ -88,6 +88,10 @@ fun HomeScreen(
 
         PowerButton(status = status, enabled = shizuku == ShizukuState.READY, onClick = onToggle)
 
+        if (shizuku == ShizukuState.READY) {
+            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { NewIpChip() }
+        }
+
         if (quotaGb > 0) PlanCard(quotaGb, quotaResetDay)
 
         if (status.state == ShareStatus.State.ERROR) {
@@ -320,7 +324,14 @@ fun Spacer16() = Spacer(Modifier.height(16.dp))
 @Composable
 private fun VitalsRow(v: Vitals) {
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        VitalTile("Señal", v.network, signalText(v.signalBars), Modifier.weight(1f)) { SignalBars(v.signalBars) }
+        val context = androidx.compose.ui.platform.LocalContext.current
+        VitalTile(
+            "Señal", v.network,
+            if (v.signalBars == NO_PERMISSION) "Toca para permitir" else signalText(v.signalBars),
+            Modifier.weight(1f).clickable(enabled = v.signalBars == NO_PERMISSION) {
+                (context as? android.app.Activity)?.requestPermissions(arrayOf(android.Manifest.permission.READ_PHONE_STATE), 2)
+            },
+        ) { SignalBars(v.signalBars) }
         VitalTile(
             "Batería",
             if (v.batteryPercent >= 0) "${v.batteryPercent}%" else "–",

@@ -1,5 +1,13 @@
 package dev.darknet.ui
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.material.icons.filled.Autorenew
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -254,4 +262,83 @@ private const val VIDEO_URL = "https://commondatastorage.googleapis.com/gtv-vide
 private suspend fun measureUrl(url: String): JSONObject = withContext(Dispatchers.IO) {
     runCatching { JSONObject(ShizukuLink.service().speedTestUrl("direct", url)) }
         .getOrElse { JSONObject().put("error", it.message ?: "error") }
+}
+
+/**
+ * The small "Nueva IP" pill on the home screen: restarts mobile data without
+ * airplane mode and shows the old and new IP. If the carrier hands back the
+ * same IP, it tries once more.
+ */
+@Composable
+fun NewIpChip() {
+    val scope = rememberCoroutineScope()
+    val haptics = androidx.compose.ui.platform.LocalHapticFeedback.current
+    var running by remember { mutableStateOf(false) }
+    var line by remember { mutableStateOf("") }
+    var good by remember { mutableStateOf(true) }
+    val spin by androidx.compose.animation.core.rememberInfiniteTransition(label = "ip").animateFloat(
+        initialValue = 0f, targetValue = 360f,
+        animationSpec = androidx.compose.animation.core.infiniteRepeatable(
+            androidx.compose.animation.core.tween(900, easing = androidx.compose.animation.core.LinearEasing),
+        ),
+        label = "ipSpin",
+    )
+    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(
+            modifier = Modifier
+                .clip(androidx.compose.foundation.shape.RoundedCornerShape(50))
+                .background(Dn.Surface)
+                .border(1.dp, if (running) Dn.Cyan else Dn.Border, androidx.compose.foundation.shape.RoundedCornerShape(50))
+                .clickable(enabled = !running) {
+                    haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                    running = true
+                    line = "Apagando y prendiendo los datos…"
+                    scope.launch {
+                        var first: JSONObject? = null
+                        var last: JSONObject
+                        var tries = 0
+                        do {
+                            tries++
+                            if (tries == 2) line = "Misma IP; probando otra vez…"
+                            last = withContext(Dispatchers.IO) {
+                                runCatching { JSONObject(ShizukuLink.service().restartData()) }
+                                    .getOrElse { JSONObject().put("error", it.message ?: "error") }
+                            }
+                            if (first == null) first = last
+                            val same = !last.has("error") && last.optString("after").isNotEmpty() &&
+                                last.optString("after") == first!!.optString("before")
+                        } while (same && tries < 2)
+                        val before = first!!.optString("before").ifEmpty { "?" }
+                        val after = last.optString("after").ifEmpty { "?" }
+                        when {
+                            last.has("error") -> { good = false; line = "No se pudo: ${last.optString("error")}" }
+                            after == before -> { good = false; line = "Tu operadora mantuvo la misma IP ($after)" }
+                            else -> { good = true; line = "IP nueva: $after   ·   antes $before" }
+                        }
+                        haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                        running = false
+                    }
+                }
+                .padding(horizontal = 16.dp, vertical = 9.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Icon(
+                androidx.compose.material.icons.Icons.Filled.Autorenew,
+                contentDescription = null,
+                tint = if (running) Dn.Cyan else Dn.VioletSoft,
+                modifier = Modifier.size(18.dp).then(if (running) Modifier.rotate(spin) else Modifier),
+            )
+            Text(
+                if (running) "Reiniciando datos…" else "Nueva IP",
+                style = Dn.Small.copy(color = Dn.Text, fontWeight = FontWeight.SemiBold),
+            )
+        }
+        if (line.isNotEmpty()) {
+            Text(
+                line,
+                style = Dn.Small.copy(color = if (running) Dn.Muted else if (good) Dn.Green else Dn.Amber),
+            )
+        }
+    }
 }
