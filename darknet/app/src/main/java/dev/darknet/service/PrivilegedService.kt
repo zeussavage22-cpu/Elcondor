@@ -386,6 +386,47 @@ class PrivilegedService(base: Context) : IDarkNetService.Stub() {
         JSONObject().put("error", it.message ?: it.javaClass.simpleName).toString()
     }
 
+    override fun renewIp(attempt: Int): String = runCatching {
+        val start = net.awaitCellular(3000) ?: error("no hay datos móviles conectados")
+        val before4 = net.publicIp(start)
+        val before6 = net.publicIp6(start)
+        val t0 = System.currentTimeMillis()
+        val sharing = state == "active"
+        val method: String
+        if (attempt >= 3 && !sharing) {
+            method = "modo avión 6 s"
+            ServiceLog.info("new IP: airplane mode")
+            net.setAirplaneMode(true)
+            try { Thread.sleep(6000) } finally { net.setAirplaneMode(false) }
+        } else {
+            val offMs = when (attempt) { 1 -> 5000L; 2 -> 15_000L; else -> 30_000L }
+            method = "datos apagados ${offMs / 1000} s"
+            ServiceLog.info("new IP: $method")
+            net.setMobileData(false)
+            try {
+                if (!net.awaitCellularGone(8000)) ServiceLog.warn("mobile data did not go down")
+                Thread.sleep(offMs)
+            } finally {
+                net.setMobileData(true)
+            }
+        }
+        val cell = net.awaitCellular(45_000) ?: error("los datos no volvieron en 45 s; revísalos en los ajustes")
+        val seconds = (System.currentTimeMillis() - t0) / 1000.0
+        // The new session can take a moment before IPv6 routes.
+        var after6 = net.publicIp6(cell)
+        if (after6 == null && before6 != null) { Thread.sleep(2000); after6 = net.publicIp6(cell) }
+        JSONObject()
+            .put("before4", before4 ?: "").put("before6", before6 ?: "")
+            .put("after4", net.publicIp(cell) ?: "").put("after6", after6 ?: "")
+            .put("seconds", seconds).put("method", method)
+            .toString()
+    }.getOrElse {
+        ServiceLog.error("new IP", it)
+        runCatching { net.setAirplaneMode(false) }
+        runCatching { net.setMobileData(true) } // never leave the phone offline
+        JSONObject().put("error", it.message ?: it.javaClass.simpleName).toString()
+    }
+
     override fun setNetwork(handle: Long) {
         engineSession?.setNetwork(handle)
     }

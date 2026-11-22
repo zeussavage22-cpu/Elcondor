@@ -69,7 +69,9 @@ fun rememberVitals(): Vitals {
         val callback = if (tm != null && canReadPhone) {
             object : TelephonyCallback(), TelephonyCallback.SignalStrengthsListener, TelephonyCallback.DisplayInfoListener {
                 override fun onSignalStrengthsChanged(s: SignalStrength) {
-                    vitals = vitals.copy(signalBars = s.level)
+                    // Some phones report 0 overall on 5G; the best antenna is the truth.
+                    val best = s.cellSignalStrengths.maxOfOrNull { it.level } ?: 0
+                    vitals = vitals.copy(signalBars = maxOf(s.level, best))
                 }
 
                 override fun onDisplayInfoChanged(info: TelephonyDisplayInfo) {

@@ -223,9 +223,35 @@ internal class SystemNet(private val context: Context) {
         return network
     }
 
+    /** Waits until mobile data is really gone; false on timeout. */
+    fun awaitCellularGone(timeoutMs: Long): Boolean {
+        val deadline = System.currentTimeMillis() + timeoutMs
+        while (System.currentTimeMillis() < deadline) {
+            val any = cm.allNetworks.any { n ->
+                cm.getNetworkCapabilities(n)?.hasTransport(android.net.NetworkCapabilities.TRANSPORT_CELLULAR) == true
+            }
+            if (!any) return true
+            Thread.sleep(250)
+        }
+        return false
+    }
+
+    fun setAirplaneMode(on: Boolean) {
+        runCatching { cm.javaClass.getMethod("setAirplaneMode", Boolean::class.javaPrimitiveType).invoke(cm, on) }
+            .recoverCatching {
+                val p = Runtime.getRuntime().exec(arrayOf("cmd", "connectivity", "airplane-mode", if (on) "enable" else "disable"))
+                check(p.waitFor() == 0) { "airplane mode command failed" }
+            }.getOrThrow()
+    }
+
+    /** The public IPv6 seen from [network], or null if it has none. */
+    fun publicIp6(network: Network): String? = trace(network, "https://[2606:4700:4700::1111]/cdn-cgi/trace")
+
     /** The public IP seen from [network], via Cloudflare's trace page. */
-    fun publicIp(network: Network): String? = runCatching {
-        val c = network.openConnection(java.net.URL("https://1.1.1.1/cdn-cgi/trace")) as java.net.HttpURLConnection
+    fun publicIp(network: Network): String? = trace(network, "https://1.1.1.1/cdn-cgi/trace")
+
+    private fun trace(network: Network, url: String): String? = runCatching {
+        val c = network.openConnection(java.net.URL(url)) as java.net.HttpURLConnection
         c.connectTimeout = 5000
         c.readTimeout = 5000
         val body = c.inputStream.use { it.readBytes().decodeToString() }

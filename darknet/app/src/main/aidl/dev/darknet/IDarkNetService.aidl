@@ -36,6 +36,11 @@ interface IDarkNetService {
     // Like speedTest, from a given URL (streams ask for consecutive byte ranges).
     String speedTestUrl(String mode, String url) = 11;
 
+    // One escalating attempt to get a new IP: 1 = data off 5 s, 2 = data off 15 s,
+    // 3 = airplane mode for a few seconds (data off 30 s instead while sharing).
+    // JSON {"before4","before6","after4","after6","seconds","method"} or {"error"}.
+    String renewIp(int attempt) = 12;
+
     // Shizuku's reserved code: kill the service process.
     void destroy() = 16777114;
 }

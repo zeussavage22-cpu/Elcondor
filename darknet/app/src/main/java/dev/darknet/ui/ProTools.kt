@@ -36,6 +36,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import dev.darknet.ShizukuLink
 import dev.darknet.data.Bytes
+import dev.darknet.data.IpChange
 import dev.darknet.data.ShareStatus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -265,16 +266,16 @@ private suspend fun measureUrl(url: String): JSONObject = withContext(Dispatcher
 }
 
 /**
- * The small "Nueva IP" pill on the home screen: restarts mobile data without
- * airplane mode and shows the old and new IP. If the carrier hands back the
- * same IP, it tries once more.
+ * The small "Nueva IP" pill on the home screen. Restarts mobile data in up to
+ * three stronger steps (5 s off, 15 s off, then a few seconds of airplane mode
+ * when not sharing) until the carrier hands out a new IPv4 or a new IPv6 network.
  */
 @Composable
 fun NewIpChip() {
     val scope = rememberCoroutineScope()
     val haptics = androidx.compose.ui.platform.LocalHapticFeedback.current
     var running by remember { mutableStateOf(false) }
-    var line by remember { mutableStateOf("") }
+    var lines by remember { mutableStateOf(listOf<String>()) }
     var good by remember { mutableStateOf(true) }
     val spin by androidx.compose.animation.core.rememberInfiniteTransition(label = "ip").animateFloat(
         initialValue = 0f, targetValue = 360f,
@@ -283,7 +284,8 @@ fun NewIpChip() {
         ),
         label = "ipSpin",
     )
-    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    val steps = listOf("Intento 1 de 3: datos apagados 5 s…", "Intento 2 de 3: datos apagados 15 s…", "Intento 3 de 3: modo avión unos segundos…")
+    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(
             modifier = Modifier
                 .clip(androidx.compose.foundation.shape.RoundedCornerShape(50))
@@ -292,28 +294,42 @@ fun NewIpChip() {
                 .clickable(enabled = !running) {
                     haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
                     running = true
-                    line = "Apagando y prendiendo los datos…"
                     scope.launch {
                         var first: JSONObject? = null
-                        var last: JSONObject
-                        var tries = 0
-                        do {
-                            tries++
-                            if (tries == 2) line = "Misma IP; probando otra vez…"
+                        var last = JSONObject()
+                        for (attempt in 1..3) {
+                            lines = listOf(steps[attempt - 1])
                             last = withContext(Dispatchers.IO) {
-                                runCatching { JSONObject(ShizukuLink.service().restartData()) }
+                                runCatching { JSONObject(ShizukuLink.service().renewIp(attempt)) }
                                     .getOrElse { JSONObject().put("error", it.message ?: "error") }
                             }
+                            if (last.has("error")) break
                             if (first == null) first = last
-                            val same = !last.has("error") && last.optString("after").isNotEmpty() &&
-                                last.optString("after") == first!!.optString("before")
-                        } while (same && tries < 2)
-                        val before = first!!.optString("before").ifEmpty { "?" }
-                        val after = last.optString("after").ifEmpty { "?" }
+                            if (IpChange.changed(first.optString("before4"), last.optString("after4"), first.optString("before6"), last.optString("after6"))) break
+                        }
+                        val b4 = first?.optString("before4").orEmpty()
+                        val a4 = last.optString("after4")
+                        val b6 = first?.optString("before6").orEmpty()
+                        val a6 = last.optString("after6")
                         when {
-                            last.has("error") -> { good = false; line = "No se pudo: ${last.optString("error")}" }
-                            after == before -> { good = false; line = "Tu operadora mantuvo la misma IP ($after)" }
-                            else -> { good = true; line = "IP nueva: $after   ·   antes $before" }
+                            last.has("error") -> { good = false; lines = listOf("No se pudo: ${last.optString("error")}") }
+                            IpChange.changed(b4, a4, b6, a6) -> {
+                                good = true
+                                lines = buildList {
+                                    add("IP nueva en %.0f s (%s)".format(last.optDouble("seconds"), last.optString("method")))
+                                    add("IPv4: ${b4.ifEmpty { "–" }} → ${a4.ifEmpty { "–" }}" + if (IpChange.changed4(b4, a4)) "  ✓" else "  (compartida, igual)")
+                                    if (b6.isNotEmpty() || a6.isNotEmpty()) {
+                                        add("IPv6: ${IpChange.short6(b6)} → ${IpChange.short6(a6)}" + if (IpChange.changed6(b6, a6)) "  ✓" else "")
+                                    }
+                                }
+                            }
+                            else -> {
+                                good = false
+                                lines = listOf(
+                                    "Tu operadora mantuvo la misma IP tras 3 intentos (${a4.ifEmpty { "?" }}).",
+                                    "Es una IP compartida (CGNAT): prueba de nuevo en unos minutos.",
+                                )
+                            }
                         }
                         haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
                         running = false
@@ -330,14 +346,15 @@ fun NewIpChip() {
                 modifier = Modifier.size(18.dp).then(if (running) Modifier.rotate(spin) else Modifier),
             )
             Text(
-                if (running) "Reiniciando datos…" else "Nueva IP",
+                if (running) "Buscando IP nueva…" else "Nueva IP",
                 style = Dn.Small.copy(color = Dn.Text, fontWeight = FontWeight.SemiBold),
             )
         }
-        if (line.isNotEmpty()) {
+        lines.forEach {
             Text(
-                line,
+                it,
                 style = Dn.Small.copy(color = if (running) Dn.Muted else if (good) Dn.Green else Dn.Amber),
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
             )
         }
     }
