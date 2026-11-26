@@ -11,6 +11,16 @@
         <package android:name="moe.shizuku.privileged.api" />
     </queries>
 
+    <!--
+        Necesario para mostrar el NOMBRE de los paquetes del sistema (y de los que
+        están en la papelera) en Android 11+. Los comandos `pm` no lo necesitan:
+        corren como shell. Google Play restringe este permiso; para distribución
+        fuera de Play (GitHub/F-Droid) no hay problema.
+    -->
+    <uses-permission
+        android:name="android.permission.QUERY_ALL_PACKAGES"
+        tools:ignore="QueryAllPackagesPermission" />
+
     <application
         android:name=".ElCondorApp"
         android:allowBackup="false"

@@ -4,7 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import com.elcondor.app.ui.MainScreen
+import com.elcondor.app.ui.AppRoot
 import com.elcondor.app.ui.theme.ElCondorTheme
 
 class MainActivity : ComponentActivity() {
@@ -16,7 +16,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             ElCondorTheme {
-                MainScreen(shell = app.shell, density = app.density)
+                AppRoot(app)
             }
         }
     }
