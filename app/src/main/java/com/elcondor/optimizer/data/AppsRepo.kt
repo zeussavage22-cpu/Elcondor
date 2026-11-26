@@ -27,6 +27,7 @@ data class AppEntry(
     var appBytes: Long = 0,
     var dataBytes: Long = 0,
     var cacheBytes: Long = 0,
+    val enabled: Boolean = true,
 ) {
     val totalBytes get() = appBytes + dataBytes + cacheBytes
 }
@@ -58,18 +59,19 @@ object AppsRepo {
         val launchable = pm.queryIntentActivities(
             Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER), 0
         ).map { it.activityInfo.packageName }.toSet()
-        return pm.getInstalledPackages(0).mapNotNull { p ->
+        return pm.getInstalledPackages(PackageManager.MATCH_DISABLED_COMPONENTS).mapNotNull { p ->
             val ai = p.applicationInfo ?: return@mapNotNull null
             val sys = (ai.flags and ApplicationInfo.FLAG_SYSTEM) != 0 &&
                 (ai.flags and ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) == 0
             if (p.packageName == ctx.packageName) return@mapNotNull null
-            if (sys && !includeSystem && p.packageName !in launchable) return@mapNotNull null
+            if (sys && !includeSystem && p.packageName !in launchable && ai.enabled) return@mapNotNull null
             AppEntry(
                 pkg = p.packageName,
                 label = ai.loadLabel(pm).toString(),
                 uid = ai.uid,
                 system = sys,
                 installTime = p.firstInstallTime,
+                enabled = ai.enabled,
                 // Tamaño del APK (no requiere permisos); se reemplaza por el dato exacto si hay acceso de uso
                 appBytes = (listOf(ai.sourceDir) + ai.splitSourceDirs.orEmpty()).sumOf { java.io.File(it).length() },
             )

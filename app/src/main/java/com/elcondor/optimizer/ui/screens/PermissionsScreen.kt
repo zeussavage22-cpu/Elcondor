@@ -49,9 +49,14 @@ fun PermissionsScreen(modifier: Modifier, refresh: Int, onDone: () -> Unit) {
             Column(Modifier.statusBarsPadding().padding(start = 8.dp, top = 36.dp, bottom = 16.dp, end = 8.dp)) {
                 Text("Configura\nCóndor", style = MaterialTheme.typography.displayMedium)
                 Spacer(Modifier.height(10.dp))
-                Text("Tres accesos para analizar todo tu teléfono. Todo se queda en tu S25 Ultra: nada se sube a internet.",
+                Text("La forma más fácil es el Modo Pro con Shizuku: se salta los bloqueos y da todos los permisos de un toque. Todo se queda en tu teléfono.",
                     style = MaterialTheme.typography.bodyMedium, color = muted())
             }
+        }
+        item { ProCard(onChanged = { tick++ }) }
+        item {
+            Text("O actívalos uno por uno".uppercase(), style = MaterialTheme.typography.labelSmall, color = muted(),
+                modifier = Modifier.padding(start = 8.dp, top = 14.dp, bottom = 2.dp))
         }
         item {
             PermBlock(Icons.Outlined.QueryStats, "Datos de uso", "Ver qué apps gastan batería e internet, su tamaño y caché.", usage) {

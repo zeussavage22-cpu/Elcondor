@@ -14,7 +14,12 @@ import com.elcondor.optimizer.data.*
 import com.elcondor.optimizer.ui.components.*
 import com.elcondor.optimizer.ui.theme.Good
 import com.elcondor.optimizer.ui.theme.Warn
+import android.widget.Toast
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import com.elcondor.optimizer.ui.theme.Bad
 import kotlinx.coroutines.isActive
 
 @Composable
@@ -37,6 +42,11 @@ fun ToolsScreen(modifier: Modifier, refresh: Int, onBack: () -> Unit, onPerms: (
             }
             Header("Herramientas", id.model)
         }
+        item {
+            SectionLabel("Modo Pro")
+            ProCard()
+        }
+        if (Pro.canTweak || Pro.ready) item { ProTools() }
         item {
             SectionLabel("Permisos")
             Block(padding = 12.dp) {
@@ -92,4 +102,60 @@ fun ToolsScreen(modifier: Modifier, refresh: Int, onBack: () -> Unit, onPerms: (
                 modifier = Modifier.padding(top = 20.dp, start = 4.dp))
         }
     }
+}
+
+@Composable
+private fun ProTools() {
+    val ctx = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var anim by remember { mutableStateOf(Pro.animationScale(ctx)) }
+    var busy by remember { mutableStateOf<String?>(null) }
+    var health by remember { mutableStateOf<Int?>(null) }
+    var confirmReboot by remember { mutableStateOf(false) }
+    LaunchedEffect(Pro.status) { health = withContext(Dispatchers.IO) { Pro.batteryHealthPercent() } }
+
+    fun run(label: String, done: (Any?) -> String, block: () -> Any?) {
+        busy = label
+        scope.launch {
+            val r = withContext(Dispatchers.IO) { block() }
+            busy = null
+            Toast.makeText(ctx, done(r), Toast.LENGTH_LONG).show()
+        }
+    }
+
+    SectionLabel("Herramientas Pro")
+    Block(padding = 16.dp) {
+        Text("Velocidad de animaciones", style = MaterialTheme.typography.bodyLarge)
+        Text("Más rápido = el teléfono se siente más ágil", style = MaterialTheme.typography.bodySmall, color = muted())
+        Spacer(Modifier.height(10.dp))
+        Segmented(listOf(0f to "Sin", 0.5f to "0.5x", 0.75f to "0.75x", 1f to "Normal"), listOf(0f, 0.5f, 0.75f, 1f).minByOrNull { kotlin.math.abs(it - anim) } ?: 1f) { v ->
+            scope.launch {
+                val ok = withContext(Dispatchers.IO) { Pro.setAnimationScale(ctx, v) }
+                if (ok) anim = v else Toast.makeText(ctx, "Necesita el Modo Pro", Toast.LENGTH_SHORT).show()
+            }
+        }
+        Spacer(Modifier.height(10.dp))
+        busy?.let {
+            LinearProgressIndicator(Modifier.fillMaxWidth().padding(vertical = 8.dp))
+            Text(it, style = MaterialTheme.typography.labelMedium, color = muted())
+        }
+        if (Pro.ready) {
+            NavRow(Icons.Outlined.DeleteSweep, "Borrar caché de todas las apps", "Sin perder datos ni sesiones") {
+                if (busy == null) run("Borrando caché…", { "${Fmt.bytes(it as Long)} liberados" }) { Pro.trimCaches(ctx) }
+            }
+            NavRow(Icons.Outlined.Speed, "Compilar apps para más velocidad", "Lo que Android hace de noche. Tarda unos minutos") {
+                if (busy == null) run("Optimizando apps… puedes seguir usando el teléfono", { if (it == true) "Apps optimizadas" else "Terminado" }) { Pro.optimizeApps() }
+            }
+            NavRow(Icons.Outlined.RestartAlt, "Reiniciar teléfono", "Limpia la memoria por completo") { confirmReboot = true }
+        }
+        health?.let { KeyValue("Capacidad real de la batería", "$it %", when { it >= 85 -> Good; it >= 75 -> Warn; else -> Bad }) }
+    }
+
+    if (confirmReboot) AlertDialog(
+        onDismissRequest = { confirmReboot = false },
+        title = { Text("¿Reiniciar ahora?") },
+        text = { Text("Después del reinicio abre Shizuku y toca Iniciar para volver a activar el Modo Pro.") },
+        confirmButton = { TextButton(onClick = { confirmReboot = false; scope.launch(Dispatchers.IO) { Pro.reboot() } }) { Text("Reiniciar") } },
+        dismissButton = { TextButton(onClick = { confirmReboot = false }) { Text("Cancelar") } },
+    )
 }

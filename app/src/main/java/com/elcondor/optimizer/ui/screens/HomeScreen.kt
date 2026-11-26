@@ -55,19 +55,24 @@ fun HomeScreen(modifier: Modifier, refresh: Int, onAction: (Action) -> Unit, onT
             step = "Liberando memoria"
             val ram = withContext(Dispatchers.IO) { AppsRepo.boost(ctx) }
             var bytes = 0L; var n = 0
+            if (Pro.ready) {
+                step = "Borrando caché"
+                bytes += withContext(Dispatchers.IO) { Pro.trimCaches(ctx) }
+                if (bytes > 0) n++
+            }
             if (Perms.hasAllFiles()) {
                 step = "Buscando basura"
                 val r = withContext(Dispatchers.IO) { JunkScanner.scan(ctx) }
                 step = "Limpiando"
                 val safe = listOf(JunkType.TEMP, JunkType.THUMBS, JunkType.EMPTY).flatMap { r.items[it].orEmpty() }
                 val (c, b, _) = withContext(Dispatchers.IO) { JunkScanner.delete(safe) }
-                n = c; bytes = b
+                n += c; bytes += b
             }
             step = "Reanalizando"
             analysis = withContext(Dispatchers.IO) { Advisor.analyze(ctx) }.also { lastAnalysis = it }
             result = buildString {
                 append("${Fmt.bytes(ram)} de RAM liberada")
-                if (n > 0) append(" · ${Fmt.bytes(bytes)} de basura eliminada")
+                if (bytes > 0) append(" · ${Fmt.bytes(bytes)} de basura y caché eliminados")
             }
             busy = false
             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -77,7 +82,7 @@ fun HomeScreen(modifier: Modifier, refresh: Int, onAction: (Action) -> Unit, onT
     val a = analysis
     LazyColumn(modifier, contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = BottomSpace)) {
         item {
-            Header("Cóndor", a?.identity?.model ?: "Analizando…") {
+            Header(if (Pro.ready) "Cóndor Pro" else "Cóndor", a?.identity?.model ?: "Analizando…") {
                 IconButton(onClick = { reload++ }) { Icon(Icons.Outlined.Refresh, "Reanalizar") }
                 IconButton(onClick = onTools) { Icon(Icons.Outlined.Build, "Herramientas") }
             }

@@ -52,7 +52,13 @@ class MainActivity : ComponentActivity() {
         installSplashScreen()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        Pro.init(this)
         setContent { CondorTheme { App() } }
+    }
+
+    override fun onDestroy() {
+        Pro.dispose()
+        super.onDestroy()
     }
 }
 
@@ -64,7 +70,14 @@ fun App() {
     val prefs = remember { Perms.prefs(ctx) }
     var tab by rememberSaveable { mutableStateOf(if (prefs.getBoolean("onboarded", false)) Tab.HOME else Tab.PERMS) }
     var refresh by remember { mutableIntStateOf(0) }
-    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { refresh++ }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { Pro.update(); refresh++ }
+    // Al conectar Shizuku, Cóndor se concede solo todo lo que le falte
+    LaunchedEffect(Pro.status) {
+        if (Pro.ready && (!Perms.hasUsageAccess(ctx) || !Perms.hasAllFiles() || !Perms.hasMedia(ctx) || !Pro.hasDump)) {
+            withContext(Dispatchers.IO) { Pro.grantAll(ctx) }
+        }
+        refresh++
+    }
     BackHandler(enabled = tab != Tab.HOME) { tab = Tab.HOME }
 
     val onAction: (Action) -> Unit = { a ->

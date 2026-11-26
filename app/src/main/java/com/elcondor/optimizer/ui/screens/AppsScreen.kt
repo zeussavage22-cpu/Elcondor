@@ -28,7 +28,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 private enum class AppSort(val label: String, val needsUsage: Boolean) {
-    SIZE("Pesadas", false), UNUSED("Sin usar", true), CACHE("Caché", true), USAGE("Más usadas", true), NEW("Recientes", false)
+    SIZE("Pesadas", false), UNUSED("Sin usar", true), CACHE("Caché", true), USAGE("Más usadas", true), NEW("Recientes", false), FROZEN("Congeladas", false)
 }
 
 @Composable
@@ -38,10 +38,13 @@ fun AppsScreen(modifier: Modifier, refresh: Int, onAction: (Action) -> Unit) {
     var apps by remember { mutableStateOf<List<AppEntry>?>(null) }
     var sort by remember { mutableStateOf(AppSort.SIZE) }
     var query by remember { mutableStateOf("") }
+    var showSystem by remember { mutableStateOf(false) }
+    var sheet by remember { mutableStateOf<AppEntry?>(null) }
+    var reload by remember { mutableIntStateOf(0) }
 
-    LaunchedEffect(refresh) {
+    LaunchedEffect(refresh, showSystem, reload) {
         apps = withContext(Dispatchers.IO) {
-            AppsRepo.installed(ctx).also { AppsRepo.fillUsage(ctx, it, AppsRepo.startOfToday()); AppsRepo.fillStorage(ctx, it) }
+            AppsRepo.installed(ctx, includeSystem = showSystem).also { AppsRepo.fillUsage(ctx, it, AppsRepo.startOfToday()); AppsRepo.fillStorage(ctx, it) }
         }
     }
     val month = System.currentTimeMillis() - 30L * 86_400_000
@@ -68,7 +71,8 @@ fun AppsScreen(modifier: Modifier, refresh: Int, onAction: (Action) -> Unit) {
         }
         item {
             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                AppSort.entries.filter { usage || !it.needsUsage }.forEach { s ->
+                if (Pro.ready) FilterChip(showSystem, { showSystem = !showSystem }, { Text("Sistema") }, shape = CircleShape)
+                AppSort.entries.filter { (usage || !it.needsUsage) && (it != AppSort.FROZEN || list.any { a -> !a.enabled }) }.forEach { s ->
                     FilterChip(sort == s, { sort = s }, { Text(s.label) }, shape = CircleShape)
                 }
             }
@@ -80,10 +84,11 @@ fun AppsScreen(modifier: Modifier, refresh: Int, onAction: (Action) -> Unit) {
                 AppSort.CACHE -> l.sortedByDescending { it.cacheBytes }
                 AppSort.USAGE -> l.sortedByDescending { it.fgTimeMs }
                 AppSort.NEW -> l.sortedByDescending { it.installTime }
+                AppSort.FROZEN -> l.filter { !it.enabled }
             }
         }
         items(shown, key = { it.pkg }) { a ->
-            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(MaterialTheme.colorScheme.surfaceContainer).clickable { Nav.appDetails(ctx, a.pkg) }
+            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(MaterialTheme.colorScheme.surfaceContainer).clickable { sheet = a }
                 .padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                 AppIcon(a.pkg, 44.dp)
                 Spacer(Modifier.width(14.dp))
@@ -93,13 +98,15 @@ fun AppsScreen(modifier: Modifier, refresh: Int, onAction: (Action) -> Unit) {
                         AppSort.CACHE -> "Caché ${Fmt.bytes(a.cacheBytes)}"
                         AppSort.USAGE -> "Hoy ${Fmt.duration(a.fgTimeMs)}"
                         AppSort.NEW -> "Instalada: ${Fmt.ago(a.installTime).lowercase()}"
+                        AppSort.FROZEN -> "Congelada"
                         else -> if (usage) "${Fmt.bytes(a.totalBytes)} · ${Fmt.ago(a.lastUsed).lowercase()}" else Fmt.bytes(a.totalBytes)
                     }
                     Text(detail, style = MaterialTheme.typography.labelMedium, color = if (usage && a.lastUsed in 1 until month) Warn else muted())
                 }
-                if (!a.system) IconButton(onClick = { Nav.uninstall(ctx, a.pkg) }) { Icon(Icons.Outlined.DeleteOutline, "Desinstalar", tint = muted()) }
+                if (!a.enabled) Text("Congelada", style = MaterialTheme.typography.labelMedium, color = Warn)
+                else if (!a.system) IconButton(onClick = { Nav.uninstall(ctx, a.pkg) }) { Icon(Icons.Outlined.DeleteOutline, "Desinstalar", tint = muted()) }
             }
         }
     }
+    sheet?.let { a -> AppSheet(a.pkg, a.label, a.system, onDismiss = { sheet = null }, onChanged = { reload++ }) }
 }
-

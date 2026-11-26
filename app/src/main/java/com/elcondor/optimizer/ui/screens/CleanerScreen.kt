@@ -114,7 +114,13 @@ fun CleanerScreen(modifier: Modifier, refresh: Int, onAction: (Action) -> Unit) 
                     }
                 }
                 Spacer(Modifier.height(14.dp))
-                if (files && Build.VERSION.SDK_INT >= 30) FilledTonalButton(onClick = {
+                if (Pro.ready) FilledTonalButton(onClick = {
+                    scope.launch {
+                        val b = withContext(Dispatchers.IO) { Pro.trimCaches(ctx) }
+                        Toast.makeText(ctx, "${Fmt.bytes(b)} de caché eliminados", Toast.LENGTH_LONG).show(); reload++
+                    }
+                }, shape = CircleShape, modifier = Modifier.fillMaxWidth().height(50.dp)) { Icon(Icons.Outlined.DeleteSweep, null); Spacer(Modifier.width(8.dp)); Text("Limpiar toda la caché (Pro)") }
+                else if (files && Build.VERSION.SDK_INT >= 30) FilledTonalButton(onClick = {
                     try { clearCache.launch(Intent(StorageManager.ACTION_CLEAR_APP_CACHE)) } catch (_: Exception) { Nav.storage(ctx) }
                 }, shape = CircleShape, modifier = Modifier.fillMaxWidth().height(50.dp)) { Icon(Icons.Outlined.DeleteSweep, null); Spacer(Modifier.width(8.dp)); Text("Limpiar toda la caché") }
                 else Text("Para borrar la caché de todas las apps de un toque activa \"Todos los archivos\" en Permisos. Mientras tanto, puedes borrarla app por app en la pestaña Apps.",

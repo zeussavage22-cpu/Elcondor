@@ -32,6 +32,15 @@ fun BatteryScreen(modifier: Modifier, refresh: Int, onAction: (Action) -> Unit) 
     var drain by remember { mutableStateOf<List<DrainEntry>?>(null) }
     var drainers by remember { mutableStateOf<SystemDrainers?>(null) }
     val usage = remember(refresh) { Perms.hasUsageAccess(ctx) }
+    var report by remember { mutableStateOf<PowerReport?>(null) }
+    var healthPct by remember { mutableStateOf<Int?>(null) }
+    var sheet by remember { mutableStateOf<Pair<String, String>?>(null) }
+    LaunchedEffect(refresh, Pro.status) {
+        if (Pro.canReadPower) {
+            report = withContext(Dispatchers.IO) { Pro.powerReport(ctx) }
+            healthPct = withContext(Dispatchers.IO) { Pro.batteryHealthPercent() }
+        }
+    }
 
     LaunchedEffect(Unit) {
         while (isActive) {
@@ -76,6 +85,7 @@ fun BatteryScreen(modifier: Modifier, refresh: Int, onAction: (Action) -> Unit) 
         item {
             SectionLabel("Salud", Modifier.padding(top = 12.dp))
             Block(padding = 18.dp) {
+                healthPct?.let { KeyValue("Capacidad real", "$it %", when { it >= 85 -> Good; it >= 75 -> Warn; else -> Bad }) }
                 KeyValue("Estado", battery.health, if (battery.healthGood) Good else Bad)
                 KeyValue("Temperatura", "${battery.temperatureC} °C",
                     when { battery.temperatureC >= 42 -> Bad; battery.temperatureC >= 38 -> Warn; else -> Good })
@@ -84,10 +94,42 @@ fun BatteryScreen(modifier: Modifier, refresh: Int, onAction: (Action) -> Unit) 
                 battery.chargeCounterMah?.let { KeyValue("Carga restante", "$it mAh") }
             }
         }
-        item {
+        report?.let { rep ->
+            item {
+                SectionLabel("Consumo real · desde la última carga")
+                Block(padding = 18.dp) {
+                    Row(verticalAlignment = Alignment.Bottom) {
+                        Text(String.format(Locale.US, "%.0f", rep.computedDrain ?: rep.apps.sumOf { it.mah }), style = MaterialTheme.typography.displayMedium)
+                        Text(" mAh gastados", style = MaterialTheme.typography.bodyMedium, color = muted(), modifier = Modifier.padding(bottom = 10.dp))
+                    }
+                    rep.capacity?.let { Text("de ${it.toInt()} mAh de capacidad", style = MaterialTheme.typography.labelMedium, color = muted()) }
+                    Spacer(Modifier.height(12.dp))
+                    val maxC = rep.components.firstOrNull()?.mah ?: 1.0
+                    rep.components.take(6).forEach { c ->
+                        BarRow(c.label, String.format(Locale.US, "%.0f mAh", c.mah), (c.mah / maxC).toFloat(), MaterialTheme.colorScheme.primary)
+                    }
+                }
+            }
+            item {
+                SectionLabel("Apps que más gastan · mAh reales")
+                Block(padding = 16.dp) {
+                    val total = rep.apps.sumOf { it.mah }.coerceAtLeast(1.0)
+                    rep.apps.take(15).forEach { a ->
+                        val share = (a.mah / total).toFloat()
+                        val sub = if (a.fgMah != null && a.bgMah != null)
+                            String.format(Locale.US, "Primer plano %.0f · Segundo plano %.0f mAh", a.fgMah, a.bgMah + (a.fgsMah ?: 0.0)) else null
+                        AppBar(a.pkg, a.label, String.format(Locale.US, "%.0f mAh", a.mah), share,
+                            when { share > 0.25f -> Bad; share > 0.10f -> Warn; else -> Good }, sub,
+                            onClick = a.pkg?.takeIf { it != "android" }?.let { p -> { sheet = p to a.label } })
+                    }
+                    Text("Toca una app para detenerla o restringirla.", style = MaterialTheme.typography.labelMedium, color = muted(), modifier = Modifier.padding(top = 8.dp))
+                }
+            }
+        }
+        if (report == null) item {
             SectionLabel("Qué la está drenando")
             Block(padding = 16.dp) {
-                if (!usage) Locked("Necesito el permiso de datos de uso para ver qué apps gastan tu batería.") { onAction(Action.USAGE_PERM) }
+                if (!usage) Locked("Necesito el permiso de datos de uso (o el Modo Pro) para ver qué apps gastan tu batería.") { onAction(Action.USAGE_PERM) }
                 else {
                     Segmented(listOf(24 to "24 h", 72 to "3 días", 168 to "7 días"), hours) { hours = it }
                     Spacer(Modifier.height(12.dp))
@@ -96,7 +138,7 @@ fun BatteryScreen(modifier: Modifier, refresh: Int, onAction: (Action) -> Unit) 
                         drain!!.isEmpty() -> Text("Aún no hay datos suficientes.", color = muted())
                         else -> drain!!.take(12).forEach { d ->
                             AppBar(d.app.pkg, d.app.label, String.format(Locale.US, "%.0f%%", d.sharePercent), d.sharePercent / 100f,
-                                when { d.sharePercent > 25 -> Bad; d.sharePercent > 10 -> Warn; else -> Good }, d.reason) { Nav.appDetails(ctx, d.app.pkg) }
+                                when { d.sharePercent > 25 -> Bad; d.sharePercent > 10 -> Warn; else -> Good }, d.reason) { sheet = d.app.pkg to d.app.label }
                         }
                     }
                     Spacer(Modifier.height(8.dp))
@@ -104,7 +146,7 @@ fun BatteryScreen(modifier: Modifier, refresh: Int, onAction: (Action) -> Unit) 
                         OutlinedButton(onClick = { Nav.batteryUsage(ctx) }, shape = CircleShape, modifier = Modifier.weight(1f)) { Text("Uso oficial") }
                         OutlinedButton(onClick = { Nav.backgroundLimits(ctx) }, shape = CircleShape, modifier = Modifier.weight(1f)) { Text("Suspender apps") }
                     }
-                    Text("Estimación con tiempo en pantalla, trabajo en segundo plano y datos.",
+                    Text("Estimación. Activa el Modo Pro (Shizuku) para ver los mAh reales.",
                         style = MaterialTheme.typography.labelMedium, color = muted(), modifier = Modifier.padding(top = 10.dp))
                 }
             }
@@ -138,6 +180,7 @@ fun BatteryScreen(modifier: Modifier, refresh: Int, onAction: (Action) -> Unit) 
             }
         }
     }
+    sheet?.let { (p, l) -> AppSheet(p, l, system = false, onDismiss = { sheet = null }) }
 }
 
 private fun onOff(b: Boolean) = if (b) "Sí" else "No"

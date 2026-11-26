@@ -1,1 +1,3 @@
-# Reglas R8 (Compose ya incluye las suyas)
+# Shizuku: se usa reflexión sobre Shizuku.newProcess
+-keep class rikka.shizuku.** { *; }
+-keep class moe.shizuku.** { *; }

@@ -3,12 +3,23 @@
 App Android (Kotlin + Jetpack Compose, Material You) que analiza todo el teléfono, explica
 qué gasta la batería y el internet, y limpia archivos basura.
 
-**Descargar APK:** [`releases/CondorCare-2.0.0.apk`](releases/CondorCare-2.0.0.apk)
+**Descargar APK:** [`releases/CondorCare-3.0.0.apk`](releases/CondorCare-3.0.0.apk)
 
 <p>
 <img src="app/screens/1_home.png" width="23%"> <img src="app/screens/0_perms.png" width="23%">
 <img src="app/screens/3_network.png" width="23%"> <img src="app/screens/4_cleaner.png" width="23%">
 </p>
+
+### Novedades 3.0 — Modo Pro con Shizuku
+Con [Shizuku](https://shizuku.rikka.app/) (permisos de ADB sin root ni computadora) Cóndor:
+- **Se da todos los permisos solo**, saltándose el bloqueo de "ajustes restringidos".
+  Además recibe `DUMP` y `WRITE_SECURE_SETTINGS`, que se mantienen aunque reinicies.
+- Muestra el **consumo real de batería en mAh** por app y por componente (pantalla, CPU, red móvil…),
+  leído de `dumpsys batterystats`.
+- Borra la **caché de todas las apps** de un toque (`pm trim-caches`).
+- **Detiene**, **restringe en segundo plano** o **congela** cualquier app (y la descongela).
+- Cambia la velocidad de las animaciones, recompila las apps para más fluidez, muestra la
+  capacidad real de la batería (ASOC de Samsung) y reinicia el teléfono.
 
 ### Novedades 2.0
 - Diseño minimalista nuevo: negro AMOLED, tipografía Manrope, barra flotante y animaciones.
