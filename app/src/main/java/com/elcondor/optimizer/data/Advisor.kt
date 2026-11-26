@@ -38,7 +38,7 @@ object Advisor {
         val id = DeviceInfo.identity(ctx)
         val dr = DeviceInfo.drainers(ctx)
         val usage = Perms.hasUsageAccess(ctx)
-        val files = Perms.hasAllFiles()
+        val files = Perms.hasMedia(ctx)
         val drain = if (usage) AppsRepo.batteryDrain(ctx, 24) else emptyList()
         val data = if (usage) NetworkRepo.usageRows(ctx, 24) else emptyList()
         val conn = NetworkRepo.connection(ctx)
@@ -56,11 +56,11 @@ object Advisor {
         if (!usage) {
             score -= 5
             tips += Tip(Severity.WARNING, "Activa el acceso de uso",
-                "Sin este permiso no puedo ver qué apps gastan batería ni datos. Es un permiso de solo lectura.",
-                Action.USAGE_PERM, "Conceder")
+                "Para ver qué apps gastan batería e internet. Si te sale bloqueado, te guío paso a paso.",
+                Action.USAGE_PERM, "Activar")
         }
-        if (!files) tips += Tip(Severity.TIP, "Permite el acceso a archivos",
-            "Necesario para encontrar y borrar archivos basura, duplicados y APKs.", Action.FILES_PERM, "Conceder")
+        if (!files) tips += Tip(Severity.TIP, "Permite el acceso a fotos y archivos",
+            "Para encontrar duplicados, videos pesados y archivos basura.", Action.FILES_PERM, "Activar")
 
         // ---------- Batería ----------
         if (battery.temperatureC >= 42) {

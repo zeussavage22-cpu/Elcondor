@@ -1,15 +1,27 @@
 package com.elcondor.optimizer.ui.screens
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.AutoAwesome
+import androidx.compose.material.icons.outlined.Build
+import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.elcondor.optimizer.data.*
 import com.elcondor.optimizer.ui.components.*
@@ -20,163 +32,165 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-data class BoostReport(val ramFreed: Long, val filesDeleted: Int, val bytesDeleted: Long, val ranJunk: Boolean)
-
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(modifier: Modifier, refresh: Int, onAction: (Action) -> Unit, onTools: () -> Unit) {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
-    var analysis by remember { mutableStateOf<Analysis?>(null) }
-    var boosting by remember { mutableStateOf(false) }
-    var boostStep by remember { mutableStateOf("") }
-    var report by remember { mutableStateOf<BoostReport?>(null) }
-    var localRefresh by remember { mutableIntStateOf(0) }
+    val haptic = LocalHapticFeedback.current
+    var analysis by remember { mutableStateOf(lastAnalysis) }
+    var busy by remember { mutableStateOf(false) }
+    var step by remember { mutableStateOf("") }
+    var result by remember { mutableStateOf<String?>(null) }
+    var reload by remember { mutableIntStateOf(0) }
+    var showAllTips by remember { mutableStateOf(false) }
 
-    LaunchedEffect(refresh, localRefresh) {
-        analysis = withContext(Dispatchers.IO) { Advisor.analyze(ctx) }
+    LaunchedEffect(refresh, reload) {
+        analysis = withContext(Dispatchers.IO) { Advisor.analyze(ctx) }.also { lastAnalysis = it }
     }
 
-    Column(modifier.fillMaxSize()) {
-        TopAppBar(
-            title = {
-                Column {
-                    Text("Cóndor Care", fontWeight = FontWeight.Bold)
-                    analysis?.let { Text(it.identity.model, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-                }
-            },
-            actions = {
-                IconButton(onClick = { analysis = null; localRefresh++ }) { Icon(Icons.Filled.Refresh, "Reanalizar") }
-                IconButton(onClick = onTools) { Icon(Icons.Filled.Build, "Herramientas") }
-            },
-        )
-        val a = analysis
-        if (a == null) { Loading("Analizando todo tu teléfono…"); return@Column }
-
-        LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            item {
-                SectionCard {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        ScoreRing(a.score)
-                        Spacer(Modifier.width(16.dp))
-                        Column(Modifier.weight(1f)) {
-                            Text(when {
-                                a.score >= 85 -> "Excelente estado"
-                                a.score >= 70 -> "Buen estado"
-                                a.score >= 50 -> "Necesita atención"
-                                else -> "Requiere optimización"
-                            }, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                            val issues = a.tips.count { it.severity == Severity.CRITICAL || it.severity == Severity.WARNING }
-                            Text(if (issues == 0) "Sin problemas importantes" else "$issues problema(s) detectado(s)",
-                                color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Spacer(Modifier.height(12.dp))
-                            Button(
-                                enabled = !boosting,
-                                onClick = {
-                                    boosting = true
-                                    scope.launch {
-                                        boostStep = "Cerrando procesos en segundo plano…"
-                                        val ram = withContext(Dispatchers.IO) { AppsRepo.boost(ctx) }
-                                        var n = 0; var b = 0L; var ran = false
-                                        if (Perms.hasAllFiles()) {
-                                            ran = true
-                                            boostStep = "Buscando basura segura…"
-                                            val r = withContext(Dispatchers.IO) { JunkScanner.scan() }
-                                            boostStep = "Eliminando basura…"
-                                            val safe = listOf(JunkType.TEMP, JunkType.THUMBS, JunkType.EMPTY).flatMap { r.items[it].orEmpty() }
-                                            val res = withContext(Dispatchers.IO) { JunkScanner.delete(safe) }
-                                            n = res.first; b = res.second
-                                        }
-                                        report = BoostReport(ram, n, b, ran)
-                                        boosting = false
-                                        localRefresh++
-                                    }
-                                },
-                            ) {
-                                Icon(Icons.Filled.RocketLaunch, null, Modifier.size(18.dp))
-                                Spacer(Modifier.width(8.dp))
-                                Text(if (boosting) "Optimizando…" else "Optimizar ahora")
-                            }
-                            if (boosting) Text(boostStep, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                    }
-                }
+    fun optimize() {
+        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+        busy = true; result = null
+        scope.launch {
+            step = "Liberando memoria"
+            val ram = withContext(Dispatchers.IO) { AppsRepo.boost(ctx) }
+            var bytes = 0L; var n = 0
+            if (Perms.hasAllFiles()) {
+                step = "Buscando basura"
+                val r = withContext(Dispatchers.IO) { JunkScanner.scan(ctx) }
+                step = "Limpiando"
+                val safe = listOf(JunkType.TEMP, JunkType.THUMBS, JunkType.EMPTY).flatMap { r.items[it].orEmpty() }
+                val (c, b, _) = withContext(Dispatchers.IO) { JunkScanner.delete(safe) }
+                n = c; bytes = b
             }
-            item {
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    StatTile(Modifier.weight(1f), Icons.Filled.BatteryChargingFull, "Batería", "${a.battery.level}%",
-                        a.battery.status, tint = if (a.battery.level > 20) Good else Bad)
-                    StatTile(Modifier.weight(1f), Icons.Filled.Thermostat, "Temperatura", "${a.battery.temperatureC} °C",
-                        DeviceInfo.thermalLabel(a.identity.thermalStatus),
-                        tint = when { a.battery.temperatureC >= 42 -> Bad; a.battery.temperatureC >= 38 -> Warn; else -> Good })
-                }
+            step = "Reanalizando"
+            analysis = withContext(Dispatchers.IO) { Advisor.analyze(ctx) }.also { lastAnalysis = it }
+            result = buildString {
+                append("${Fmt.bytes(ram)} de RAM liberada")
+                if (n > 0) append(" · ${Fmt.bytes(bytes)} de basura eliminada")
             }
-            item {
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    StatTile(Modifier.weight(1f), Icons.Filled.Memory, "RAM en uso", Fmt.pct(a.memory.usedFraction),
-                        "${Fmt.bytes(a.memory.availBytes)} libre", tint = levelColor(a.memory.usedFraction))
-                    StatTile(Modifier.weight(1f), Icons.Filled.Storage, "Almacenamiento", Fmt.pct(a.storage.usedFraction),
-                        "${Fmt.bytes(a.storage.freeBytes)} libre", tint = levelColor(a.storage.usedFraction))
-                }
-            }
-            if (a.usageAccess) item {
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    StatTile(Modifier.weight(1f), Icons.Filled.Visibility, "Pantalla hoy", Fmt.duration(a.screenOnMs))
-                    StatTile(Modifier.weight(1f), Icons.Filled.NetworkCheck, "Conexión", a.connection.type,
-                        a.connection.signalQuality?.let { "Señal $it" } ?: if (a.connection.validated) "Con internet" else "Sin internet")
-                }
-            }
-            item {
-                SectionCard(title = "Asistente inteligente", icon = Icons.Filled.AutoAwesome) {
-                    a.tips.forEach { t ->
-                        TipCard(t, if (t.action != Action.NONE) ({ onAction(t.action) }) else null)
-                    }
-                }
-            }
-            if (a.topDrain.isNotEmpty()) item {
-                SectionCard(title = "Lo que más gasta batería (24 h)", icon = Icons.Filled.BatteryAlert,
-                    trailing = { TextButton(onClick = { onAction(Action.BATTERY) }) { Text("Ver todo") } }) {
-                    a.topDrain.take(3).forEach { d ->
-                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 4.dp)) {
-                            AppIcon(d.app.pkg, 32.dp); Spacer(Modifier.width(10.dp))
-                            Box(Modifier.weight(1f)) { MetricBar(d.app.label, "${d.sharePercent.toInt()}%", d.sharePercent / 100f, Warn) }
-                        }
-                    }
-                }
-            }
-            if (a.topData.isNotEmpty()) item {
-                SectionCard(title = "Lo que más usa internet (24 h)", icon = Icons.Filled.DataUsage,
-                    trailing = { TextButton(onClick = { onAction(Action.NETWORK) }) { Text("Ver todo") } }) {
-                    val max = a.topData.first().net.totalBytes.coerceAtLeast(1)
-                    a.topData.take(3).forEach { r ->
-                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 4.dp)) {
-                            AppIcon(r.pkg, 32.dp); Spacer(Modifier.width(10.dp))
-                            Box(Modifier.weight(1f)) { MetricBar(r.label, Fmt.bytes(r.net.totalBytes), r.net.totalBytes.toFloat() / max, MaterialTheme.colorScheme.primary) }
-                        }
-                    }
-                }
-            }
+            busy = false
+            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
         }
     }
 
-    report?.let { r ->
-        AlertDialog(
-            onDismissRequest = { report = null },
-            confirmButton = { TextButton(onClick = { report = null }) { Text("Listo") } },
-            icon = { Icon(Icons.Filled.CheckCircle, null, tint = Good) },
-            title = { Text("Optimización completada") },
-            text = {
-                Column {
-                    KeyValue("RAM liberada", Fmt.bytes(r.ramFreed))
-                    if (r.ranJunk) {
-                        KeyValue("Archivos basura borrados", "${r.filesDeleted}")
-                        KeyValue("Espacio recuperado", Fmt.bytes(r.bytesDeleted))
-                    } else Text("Concede acceso a archivos para limpiar también la basura.", style = MaterialTheme.typography.bodySmall)
-                    Spacer(Modifier.height(8.dp))
-                    Text("Para limpiar la caché de todas las apps usa la pestaña Limpiar.", style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+    val a = analysis
+    LazyColumn(modifier, contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = BottomSpace)) {
+        item {
+            Header("Cóndor", a?.identity?.model ?: "Analizando…") {
+                IconButton(onClick = { reload++ }) { Icon(Icons.Outlined.Refresh, "Reanalizar") }
+                IconButton(onClick = onTools) { Icon(Icons.Outlined.Build, "Herramientas") }
+            }
+        }
+        if (a == null) { item { Loading("Analizando todo tu teléfono…") }; return@LazyColumn }
+
+        item {
+            Column(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                ScoreRing(a.score, busy) {
+                    AnimatedContent(busy, transitionSpec = { fadeIn() togetherWith fadeOut() }, label = "center") { b ->
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            if (b) {
+                                Text(step, style = MaterialTheme.typography.titleMedium)
+                                Text("un momento", style = MaterialTheme.typography.bodySmall, color = muted())
+                            } else {
+                                Text("${a.score}", style = MaterialTheme.typography.displayLarge, color = scoreColor(a.score))
+                                Text(when {
+                                    a.score >= 85 -> "Excelente"
+                                    a.score >= 70 -> "Bien"
+                                    a.score >= 50 -> "Mejorable"
+                                    else -> "Necesita ayuda"
+                                }, style = MaterialTheme.typography.bodyMedium, color = muted())
+                            }
+                        }
+                    }
                 }
-            },
-        )
+                Spacer(Modifier.height(24.dp))
+                PillButton(if (busy) "Optimizando…" else "Optimizar", Modifier.fillMaxWidth(0.72f), enabled = !busy, icon = Icons.Outlined.AutoAwesome) { optimize() }
+                AnimatedVisibility(result != null, enter = fadeIn() + expandVertically()) {
+                    Text(result.orEmpty(), style = MaterialTheme.typography.bodySmall, color = Good,
+                        textAlign = TextAlign.Center, modifier = Modifier.padding(top = 12.dp))
+                }
+            }
+        }
+
+        if (!a.usageAccess) item {
+            Spacer(Modifier.height(16.dp))
+            Block(onClick = { onAction(Action.USAGE_PERM) }) {
+                Text("Activa el análisis completo", style = MaterialTheme.typography.titleMedium)
+                Text("Toca aquí para ver qué apps gastan tu batería e internet.", style = MaterialTheme.typography.bodySmall, color = muted())
+            }
+        }
+
+        item {
+            Spacer(Modifier.height(16.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Tile(Modifier.weight(1f), "Batería", "${a.battery.level}%", a.battery.level / 100f,
+                    if (a.battery.level > 20) Good else Bad, if (a.battery.charging) "Cargando" else "${a.battery.temperatureC}°C") { onAction(Action.BATTERY) }
+                Tile(Modifier.weight(1f), "Almacenamiento", Fmt.pct(a.storage.usedFraction), a.storage.usedFraction,
+                    levelColor(a.storage.usedFraction), "${Fmt.bytes(a.storage.freeBytes)} libres") { onAction(Action.CLEANER) }
+            }
+            Spacer(Modifier.height(10.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Tile(Modifier.weight(1f), "Memoria", Fmt.pct(a.memory.usedFraction), a.memory.usedFraction,
+                    levelColor(a.memory.usedFraction), "${Fmt.bytes(a.memory.availBytes)} libres") { onAction(Action.BOOST) }
+                val c = a.connection
+                Tile(Modifier.weight(1f), c.type, c.signalQuality ?: if (c.validated) "En línea" else "Sin red",
+                    c.wifiRssi?.let { ((it + 100) / 60f).coerceIn(0f, 1f) } ?: if (c.validated) 1f else 0f,
+                    when (c.signalQuality) { "Excelente", "Buena" -> Good; "Regular" -> Warn; "Débil" -> Bad; else -> if (c.validated) Good else Bad },
+                    c.wifiBand ?: if (a.usageAccess) "Pantalla ${Fmt.duration(a.screenOnMs)}" else "") { onAction(Action.NETWORK) }
+            }
+        }
+
+        item {
+            SectionLabel("Sugerencias", Modifier.padding(top = 12.dp))
+            Block(padding = 14.dp) {
+                val tips = if (showAllTips) a.tips else a.tips.take(4)
+                tips.forEach { t -> TipRow(t, if (t.action != Action.NONE) ({ onAction(t.action) }) else null) }
+                if (a.tips.size > 4) TextButton(onClick = { showAllTips = !showAllTips }, modifier = Modifier.align(Alignment.CenterHorizontally)) {
+                    Text(if (showAllTips) "Mostrar menos" else "Ver ${a.tips.size - 4} más")
+                }
+            }
+        }
+
+        if (a.topDrain.isNotEmpty()) item {
+            SectionLabel("Gasta más batería · 24 h", trailing = { TextButton(onClick = { onAction(Action.BATTERY) }) { Text("Todo") } })
+            Block(padding = 16.dp) {
+                a.topDrain.take(3).forEach { d -> AppBar(d.app.pkg, d.app.label, "${d.sharePercent.toInt()}%", d.sharePercent / 100f, Warn) }
+            }
+        }
+        if (a.topData.isNotEmpty()) item {
+            SectionLabel("Usa más internet · 24 h", trailing = { TextButton(onClick = { onAction(Action.NETWORK) }) { Text("Todo") } })
+            Block(padding = 16.dp) {
+                val max = a.topData.first().net.totalBytes.coerceAtLeast(1)
+                a.topData.take(3).forEach { r -> AppBar(r.pkg, r.label, Fmt.bytes(r.net.totalBytes), r.net.totalBytes.toFloat() / max, MaterialTheme.colorScheme.primary) }
+            }
+        }
     }
 }
+
+/** Se conserva entre pestañas para que Inicio aparezca al instante. */
+private var lastAnalysis: Analysis? = null
+
+@Composable
+private fun Tile(modifier: Modifier, label: String, value: String, fraction: Float, color: Color, sub: String, onClick: () -> Unit) {
+    Block(modifier, onClick = onClick, padding = 18.dp) {
+        Text(label, style = MaterialTheme.typography.labelMedium, color = muted(), maxLines = 1)
+        Spacer(Modifier.height(6.dp))
+        Text(value, style = MaterialTheme.typography.headlineMedium, maxLines = 1)
+        Spacer(Modifier.height(12.dp))
+        ThinBar(fraction, color)
+        Spacer(Modifier.height(8.dp))
+        Text(sub, style = MaterialTheme.typography.labelMedium, color = muted(), maxLines = 1)
+    }
+}
+
+@Composable
+fun AppBar(pkg: String?, label: String, value: String, fraction: Float, color: Color, sub: String? = null, onClick: (() -> Unit)? = null) {
+    Row(Modifier.fillMaxWidth().padding(vertical = 4.dp)
+        .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier), verticalAlignment = Alignment.CenterVertically) {
+        AppIcon(pkg, 38.dp)
+        Spacer(Modifier.width(14.dp))
+        Box(Modifier.weight(1f)) { BarRow(label, value, fraction, color, sub) }
+    }
+}
+

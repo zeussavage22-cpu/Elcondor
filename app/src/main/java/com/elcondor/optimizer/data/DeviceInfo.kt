@@ -94,7 +94,7 @@ object DeviceInfo {
         val cycles = if (Build.VERSION.SDK_INT >= 34)
             i?.getIntExtra(BatteryManager.EXTRA_CYCLE_COUNT, -1)?.takeIf { it >= 0 } else null
         return BatterySnapshot(
-            level = level,
+            level = level.coerceIn(0, 100),
             temperatureC = (i?.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, 0) ?: 0) / 10f,
             voltageMv = i?.getIntExtra(BatteryManager.EXTRA_VOLTAGE, 0) ?: 0,
             health = when (healthCode) {

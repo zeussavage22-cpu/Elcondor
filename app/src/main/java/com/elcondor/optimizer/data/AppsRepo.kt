@@ -70,6 +70,8 @@ object AppsRepo {
                 uid = ai.uid,
                 system = sys,
                 installTime = p.firstInstallTime,
+                // Tamaño del APK (no requiere permisos); se reemplaza por el dato exacto si hay acceso de uso
+                appBytes = (listOf(ai.sourceDir) + ai.splitSourceDirs.orEmpty()).sumOf { java.io.File(it).length() },
             )
         }
     }

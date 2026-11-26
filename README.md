@@ -3,7 +3,21 @@
 App Android (Kotlin + Jetpack Compose, Material You) que analiza todo el teléfono, explica
 qué gasta la batería y el internet, y limpia archivos basura.
 
-**Descargar APK:** [`releases/CondorCare-1.0.0.apk`](releases/CondorCare-1.0.0.apk)
+**Descargar APK:** [`releases/CondorCare-2.0.0.apk`](releases/CondorCare-2.0.0.apk)
+
+<p>
+<img src="app/screens/1_home.png" width="23%"> <img src="app/screens/0_perms.png" width="23%">
+<img src="app/screens/3_network.png" width="23%"> <img src="app/screens/4_cleaner.png" width="23%">
+</p>
+
+### Novedades 2.0
+- Diseño minimalista nuevo: negro AMOLED, tipografía Manrope, barra flotante y animaciones.
+- Configuración guiada de permisos, con los pasos para desbloquear los **ajustes restringidos**
+  de Android y Samsung Auto Blocker.
+- El limpiador funciona aunque no se conceda "Todos los archivos": busca en fotos, videos y audio
+  (duplicados, archivos pesados, capturas viejas) y borra con la confirmación del sistema.
+- La app funciona sin permisos (batería en vivo, prueba de velocidad, tamaño de apps); cada permiso
+  solo desbloquea más funciones.
 
 ## Funciones
 
@@ -23,9 +37,9 @@ qué gasta la batería y el internet, y limpia archivos basura.
 2. Si lo pide, permite **Instalar apps desconocidas** para el navegador o Mis Archivos.
 3. Si aparece **Auto Blocker** (bloqueo automático), desactívalo temporalmente:
    Ajustes › Seguridad y privacidad › Auto Blocker.
-4. Abre Cóndor Care y concede:
-   - **Acceso a datos de uso**: para ver qué apps gastan batería e internet (solo lectura).
-   - **Acceso a todos los archivos**: para la limpieza.
+4. Abre Cóndor Care y sigue la pantalla **Configura Cóndor**.
+   Si un permiso sale en gris o como "Ajuste restringido": Información de la app › ⋮ ›
+   **Permitir ajustes restringidos**, y vuelve a intentarlo.
 
 ## Limitaciones honestas de Android
 
@@ -44,4 +58,5 @@ Requiere JDK 17+ y Android SDK 35.
 
 ```bash
 ./gradlew assembleRelease   # firma con keystore.properties si existe, si no con la clave debug
+./gradlew testDebugUnitTest -Proborazzi.test.record=true   # capturas de cada pantalla en app/screens
 ```

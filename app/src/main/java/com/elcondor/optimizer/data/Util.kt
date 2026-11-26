@@ -20,7 +20,23 @@ object Perms {
         return mode == AppOpsManager.MODE_ALLOWED
     }
 
-    fun hasAllFiles(): Boolean = Build.VERSION.SDK_INT < 30 || Environment.isExternalStorageManager()
+    fun mediaPermissions(): Array<String> = if (Build.VERSION.SDK_INT >= 33) arrayOf(
+        android.Manifest.permission.READ_MEDIA_IMAGES, android.Manifest.permission.READ_MEDIA_VIDEO,
+        android.Manifest.permission.READ_MEDIA_AUDIO,
+    ) else arrayOf(android.Manifest.permission.READ_EXTERNAL_STORAGE)
+
+    fun hasMedia(ctx: Context): Boolean = hasAllFiles() || mediaPermissions().all {
+        ctx.checkSelfPermission(it) == android.content.pm.PackageManager.PERMISSION_GRANTED
+    }
+
+    /** Pantalla "Información de la app", desde donde se habilitan los ajustes restringidos (menú ⋮). */
+    fun openAppInfo(ctx: Context) {
+        Nav.tryStart(ctx, Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${ctx.packageName}")))
+    }
+
+    fun prefs(ctx: Context) = ctx.getSharedPreferences("condor", Context.MODE_PRIVATE)
+
+    fun hasAllFiles(): Boolean = Build.VERSION.SDK_INT < 30 || try { Environment.isExternalStorageManager() } catch (_: Exception) { false }
 
     fun openUsageAccess(ctx: Context) {
         val withPkg = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS, Uri.parse("package:${ctx.packageName}"))
