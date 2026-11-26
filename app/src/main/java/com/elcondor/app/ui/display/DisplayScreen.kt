@@ -41,6 +41,7 @@ import com.elcondor.app.display.DisplayLimits
 import com.elcondor.app.display.DisplayUiState
 import com.elcondor.app.display.PendingChange
 import com.elcondor.app.display.Resolution
+import com.elcondor.app.perapp.PerAppDpiManager
 import com.elcondor.app.shell.ShizukuShellManager
 import com.elcondor.app.shell.ShizukuState
 import com.elcondor.app.ui.ShizukuStatusCard
@@ -48,12 +49,14 @@ import com.elcondor.app.ui.ShizukuStatusCard
 @Composable
 fun DisplayScreen(
     controller: DisplayController,
+    perApp: PerAppDpiManager,
     shell: ShizukuShellManager,
     shizukuState: ShizukuState,
     snackbar: SnackbarHostState,
     modifier: Modifier = Modifier,
 ) {
     val state by controller.state.collectAsStateWithLifecycle()
+    val perAppState by perApp.state.collectAsStateWithLifecycle()
     val ready = shizukuState is ShizukuState.Ready
 
     // Al quedar listo Shizuku, leemos los valores actuales.
@@ -65,6 +68,12 @@ fun DisplayScreen(
             controller.consumeMessage()
         }
     }
+    LaunchedEffect(perAppState.message) {
+        perAppState.message?.let {
+            snackbar.showSnackbar(it)
+            perApp.consumeMessage()
+        }
+    }
 
     Column(
         modifier = modifier
@@ -74,6 +83,7 @@ fun DisplayScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         ShizukuStatusCard(state = shizukuState, shell = shell)
+        PerAppDpiCard(perAppState, perApp, shizukuReady = ready, physicalDpi = state.info?.density?.physical)
         DensityCard(state, enabled = ready, onApply = controller::applyDensity, onReset = controller::resetDensity)
         ResolutionCard(state, enabled = ready, onApply = controller::applySize, onReset = controller::resetSize)
     }
@@ -100,7 +110,7 @@ private fun DensityCard(state: DisplayUiState, enabled: Boolean, onApply: (Int) 
     val locked = !enabled || state.isLocked
     val density = state.info?.density
 
-    SettingCard("Densidad (DPI)", busy = state.isBusy) {
+    SettingCard("DPI global (todo el sistema)", busy = state.isBusy) {
         Text(
             if (density == null) "Sin datos"
             else "Físico: ${density.physical} · Actual: ${density.effective}" +

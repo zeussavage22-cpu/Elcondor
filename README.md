@@ -5,7 +5,10 @@ Personalización profunda de sistema y UI para Android sin root, usando [Shizuku
 ## Funciones
 - **Shizuku** vía UserService (AIDL) en lugar de `Shizuku.newProcess()`, que ya es privado.
   `ShizukuShellManager`: estado observable, permisos, reconexión y `executeCommand(): Result<String>`.
-- **Pantalla**: DPI (`wm density`) y resolución (`wm size`) con temporizador de seguridad
+- **DPI por app** (emulado, sin root): al abrir una app con regla se aplica su DPI
+  y al salir se restaura el anterior. Detecta la app en primer plano con un servicio
+  de accesibilidad mínimo que se activa vía Shizuku.
+- **Pantalla**: DPI global (`wm density`) y resolución (`wm size`) con temporizador de seguridad
   de 10 s y "Restaurar fábrica".
 - **Paquetes**: lista de apps del sistema, desinstalación para el usuario 0
   (`pm uninstall -k --user 0`) y **Papelera** con restauración en un toque

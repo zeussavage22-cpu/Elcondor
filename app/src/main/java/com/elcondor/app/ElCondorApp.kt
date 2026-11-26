@@ -5,6 +5,7 @@ import com.elcondor.app.animation.AnimationController
 import com.elcondor.app.display.DisplayController
 import com.elcondor.app.display.DisplaySafetyService
 import com.elcondor.app.packages.PackageRepository
+import com.elcondor.app.perapp.PerAppDpiManager
 import com.elcondor.app.packages.TrashStore
 import com.elcondor.app.shell.ShizukuShellManager
 import kotlinx.coroutines.CoroutineScope
@@ -37,6 +38,8 @@ class ElCondorApp : Application() {
         private set
     lateinit var animations: AnimationController
         private set
+    lateinit var perAppDpi: PerAppDpiManager
+        private set
 
     override fun onCreate() {
         super.onCreate()
@@ -44,6 +47,7 @@ class ElCondorApp : Application() {
         display = DisplayController(shell, appScope)
         packages = PackageRepository(this, shell, TrashStore(this))
         animations = AnimationController(this, shell, appScope)
+        perAppDpi = PerAppDpiManager(this, shell, display, appScope)
 
         // Cada vez que empieza una cuenta atrás de pantalla, levantamos el servicio
         // en primer plano que la protege. El controlador no conoce el servicio.

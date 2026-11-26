@@ -64,7 +64,7 @@ fun AppRoot(app: ElCondorApp) {
     ) { padding ->
         val contentModifier = Modifier.padding(padding)
         when (destination) {
-            Destination.Display -> DisplayScreen(app.display, app.shell, shizukuState, snackbar, contentModifier)
+            Destination.Display -> DisplayScreen(app.display, app.perAppDpi, app.shell, shizukuState, snackbar, contentModifier)
             Destination.Animations -> AnimationsScreen(app.animations, app.shell, shizukuState, snackbar, contentModifier)
             Destination.Packages -> PackagesScreen(packagesViewModel, app.shell, shizukuState, snackbar, contentModifier)
         }

@@ -2,4 +2,6 @@
 <resources>
     <string name="app_name">El Cóndor</string>
     <string name="tile_animations">Animaciones</string>
+    <string name="accessibility_label">El Cóndor · DPI por app</string>
+    <string name="accessibility_description">Detecta qué app está en primer plano para aplicar su DPI personalizado. No lee el contenido de la pantalla ni realiza acciones.</string>
 </resources>
