@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<lint>
+    <!-- aapt2 (AGP 8.7) solo resuelve <adaptive-icon> en mipmap-anydpi-v26, aunque minSdk sea 26. -->
+    <issue id="ObsoleteSdkInt">
+        <ignore path="src/main/res/mipmap-anydpi-v26" />
+    </issue>
+</lint>
