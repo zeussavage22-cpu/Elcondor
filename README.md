@@ -11,6 +11,12 @@ Personalización profunda de sistema y UI para Android sin root, usando [Shizuku
   (`pm uninstall -k --user 0`) y **Papelera** con restauración en un toque
   (`cmd package install-existing`). Los paquetes críticos (SystemUI, launcher y
   teclado activos, Shizuku…) están bloqueados.
+- **Animaciones**: las tres escalas (presets 0x–1.5x o ajuste fino) y modo inmersivo
+  (`policy_control`, solo efectivo hasta Android 10).
+- **Mosaico de Ajustes rápidos**: alterna 0.25x ↔ 1x con un toque; en Android 13+ se
+  añade al panel desde la propia app.
+- **Servicio de seguridad**: durante la cuenta atrás de DPI/resolución, una
+  notificación en primer plano con "Mantener / Revertir" protege la reversión.
 
 ## Compilar
 Requiere JDK 17+ y Android SDK 35:

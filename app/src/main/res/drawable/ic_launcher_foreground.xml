@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Primer plano del icono adaptativo: alas estilizadas + rayo (zona segura 66dp). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M54,40 L30,52 L22,50 L34,62 L46,60 L54,70 L62,60 L74,62 L86,50 L78,52 Z" />
+    <path
+        android:fillColor="#FFFFC107"
+        android:pathData="M56,34 L47,48 h6 l-2,10 9,-14 h-6 z" />
+</vector>

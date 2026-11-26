@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Teléfono con temporizador: icono monocromo de la notificación de seguridad. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M7,1h10a2,2 0,0 1,2 2v18a2,2 0,0 1,-2 2H7a2,2 0,0 1,-2 -2V3a2,2 0,0 1,2 -2zM7,4v15h10V4zM12,7a4,4 0,1 1,0 8a4,4 0,0 1,0 -8zM11.25,8.5v3.3l2.4,1.4 0.6,-1 -1.75,-1V8.5z" />
+</vector>

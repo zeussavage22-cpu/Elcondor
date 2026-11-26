@@ -2,6 +2,7 @@ package com.elcondor.app.ui
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -24,6 +25,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.elcondor.app.ElCondorApp
+import com.elcondor.app.ui.animation.AnimationsScreen
 import com.elcondor.app.ui.display.DisplayScreen
 import com.elcondor.app.ui.display.SafetyConfirmDialog
 import com.elcondor.app.ui.packages.PackagesScreen
@@ -31,6 +33,7 @@ import com.elcondor.app.ui.packages.PackagesViewModel
 
 private enum class Destination(val title: String, val icon: ImageVector) {
     Display("Pantalla", Icons.Default.Settings),
+    Animations("Animaciones", Icons.Default.PlayArrow),
     Packages("Paquetes", Icons.AutoMirrored.Filled.List),
 }
 
@@ -62,6 +65,7 @@ fun AppRoot(app: ElCondorApp) {
         val contentModifier = Modifier.padding(padding)
         when (destination) {
             Destination.Display -> DisplayScreen(app.display, app.shell, shizukuState, snackbar, contentModifier)
+            Destination.Animations -> AnimationsScreen(app.animations, app.shell, shizukuState, snackbar, contentModifier)
             Destination.Packages -> PackagesScreen(packagesViewModel, app.shell, shizukuState, snackbar, contentModifier)
         }
     }
