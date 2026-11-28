@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">SensorOff</string>
+    <string name="listener_name">SensorOff anti-pausa</string>
+</resources>
